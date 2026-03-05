@@ -11,4 +11,8 @@ class Jabatan extends Model
     protected $fillable = [
         'nama_jabatan'
     ];
+
+    public function kompetensi(){
+        return $this->belongsToMany(Kompetensi::class, 'jabatan_kompetensi','id_jabatan', 'id_kompetensi');
+    }
 }

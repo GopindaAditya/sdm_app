@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\KompetensiController;
+use App\Http\Controllers\PengembanganController;
 use Illuminate\Http\Request;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PegawaiController;
@@ -22,7 +24,7 @@ Route::middleware('auth:admin,pegawai')->group(function () {
     // Rute Dashboard
     Route::get('/dashboard', function () {
         if (Auth::guard('admin')->check()) return view('admin.dashboard'); 
-        if (Auth::guard('pegawai')->check()) return view('pegawai.dashboard');
+        if (Auth::guard('pegawai')->check()) return app(PegawaiController::class)->dashboard();
     })->name('dashboard');
 
     // Rute Profil
@@ -32,13 +34,26 @@ Route::middleware('auth:admin,pegawai')->group(function () {
     })->name('profil');
 
     // Rute Kompetensi
-    Route::get('/kompetensi', function (Request $request) {
+    Route::get('/kompetensi', function () {
         if (Auth::guard('pegawai')->check()) {
-            return app(PegawaiController::class)->kompetensi($request); 
-        }
-         
+            return app(KompetensiController::class)->kompetensi(); 
+        }         
         abort(403, 'Akses ditolak');
     })->name('kompetensi');
+
+    Route::get('/pengembangan', function (Request $request) {
+        if (Auth::guard('pegawai')->check()) {
+            return app(PengembanganController::class)->pengembangan($request); 
+        }         
+        abort(403, 'Akses ditolak');
+    })->name('pengembangan');
+
+    Route::post('/pengembangan/upload', function (Request $request) {
+        if (Auth::guard('pegawai')->check()) {
+            return app(PengembanganController::class)->uploadSertifikat($request); 
+        }         
+        abort(403, 'Akses ditolak');
+    })->name('pengembangan.upload');
 
 });
 
