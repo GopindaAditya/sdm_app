@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('pengembangan_pegawai', function (Blueprint $table) {
+        Schema::create('riwayat_pengembangan', function (Blueprint $table) {
             $table->id();
             $table->string('nip');
             $table->foreign('nip')->references('nip')->on('pegawai')->cascadeOnDelete();
-            $table->foreignId('id_pengembangan')->constrained('pengembangan')->cascadeOnDelete();            
-            $table->foreignId('id_periode')->constrained('periode')->cascadeOnDelete();           
-            $table->string('file_sertifikat');
+            $table->foreignId('id_pengembangan')->nullable()->constrained('pengembangan')->nullOnDelete();
+            $table->foreignId('id_periode')->nullable()->constrained('periode')->nullOnDelete();
+            $table->string('tanggal_kegiatan')->nullable();
+            $table->string('sertifikat')->nullable();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->timestamps();
         });
@@ -28,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('pengembangan_pegawai');
+        Schema::dropIfExists('riwayat_pengembangan');
     }
 };
