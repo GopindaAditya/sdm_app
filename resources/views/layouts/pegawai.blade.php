@@ -125,29 +125,26 @@
     </main>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         $(document).ready(function() {
             const $sidebar = $('#sidebar');
             const $overlay = $('#mobile-overlay');
-
-            // 1. Membuka Sidebar
+            
             $('#mobile-menu-btn').on('click', function() {
-                $sidebar.removeClass('-translate-x-full'); // Geser masuk
-                $overlay.removeClass('hidden'); // Munculkan layar gelap
-                $('body').addClass('overflow-hidden md:overflow-auto'); // Matikan scroll di background
+                $sidebar.removeClass('-translate-x-full'); 
+                $overlay.removeClass('hidden'); 
+                $('body').addClass('overflow-hidden md:overflow-auto'); 
             });
 
-            // 2. Fungsi Menutup Sidebar
             function closeSidebar() {
-                $sidebar.addClass('-translate-x-full'); // Geser keluar
-                $overlay.addClass('hidden'); // Sembunyikan layar gelap
-                $('body').removeClass('overflow-hidden md:overflow-auto'); // Hidupkan scroll kembali
+                $sidebar.addClass('-translate-x-full'); 
+                $overlay.addClass('hidden'); 
+                $('body').removeClass('overflow-hidden md:overflow-auto'); 
             }
 
-            // 3. Panggil fungsi tutup jika tombol X diklik
             $('#close-sidebar-btn').on('click', closeSidebar);
-
-            // 4. Panggil fungsi tutup jika layar gelap (overlay) diklik
+            
             $overlay.on('click', closeSidebar);
         });
     </script>

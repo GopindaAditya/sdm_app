@@ -5,143 +5,134 @@
 @section('content')
 <div class="flex flex-col gap-8">
     
-    <div class="flex flex-col gap-2">
-        <h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Data Kompetensi Pegawai</h1>
-        <p class="text-slate-500 dark:text-slate-400 text-sm">Employee Competency Data Overview</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300">
+            <div class="absolute right-0 top-0 h-full w-1.5 bg-primary rounded-l"></div>
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Kompetensi</p>
+                    <h3 class="text-3xl font-bold text-slate-900 dark:text-white mt-3">{{ $totalKompetensi }}</h3>
+                </div>
+                <div class="p-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl text-primary">
+                    <span class="material-symbols-outlined text-2xl">insights</span>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center text-sm">
+                <span class="text-slate-500 dark:text-slate-400 text-xs">Sesuai standar jabatan</span>
+            </div>
+        </div>    
+    
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300">
+            <div class="absolute right-0 top-0 h-full w-1.5 bg-green-500 rounded-l"></div>
+            
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Selesai</p>
+                    <h3 class="text-3xl font-bold text-slate-900 dark:text-white mt-3">{{ $totalSelesai }}</h3>
+                </div>
+                <div class="p-2.5 bg-green-500/10 rounded-xl text-green-500">
+                    <span class="material-symbols-outlined text-2xl">check_circle</span>
+                </div>
+            </div>
+            
+            <div class="mt-4 flex items-center text-sm">
+                <span class="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-md flex items-center font-semibold text-xs">
+                    Kompetensi sudah terpenuhi
+                </span>
+            </div>
+        </div>
+    
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 relative overflow-hidden group hover:-translate-y-1 transition-all duration-300">
+            <div class="absolute right-0 top-0 h-full w-1.5 bg-red-500 rounded-l"></div>
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Belum Diikuti</p>
+                    <h3 class="text-3xl font-bold text-slate-900 dark:text-white mt-3">{{ $totalBelum }}</h3>
+                </div>
+                <div class="p-2.5 bg-red-50 dark:bg-red-900/30 rounded-xl text-red-500">
+                    <span class="material-symbols-outlined text-2xl">warning</span>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center text-sm">
+                <span class="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded-md flex items-center font-semibold text-xs">
+                    <span class="material-symbols-outlined text-sm mr-1">arrow_upward</span> Perlu Tindakan
+                </span>
+            </div>
+        </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-            <div class="flex flex-col gap-1">
-                <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Total Kompetensi</p>
-                <p class="text-3xl font-bold text-slate-900 dark:text-white">{{ $totalKompetensi }}</p>
-            </div>
-            <div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <span class="material-symbols-outlined text-2xl">library_books</span>
-            </div>
-        </div>
-        
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-            <div class="flex flex-col gap-1">
-                <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Selesai</p>
-                <p class="text-3xl font-bold text-slate-900 dark:text-white">0</p>
-            </div>
-            <div class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
-                <span class="material-symbols-outlined text-2xl">check_circle</span>
-            </div>
-        </div>
-        
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-            <div class="flex flex-col gap-1">
-                <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Belum Terpenuhi</p>
-                <p class="text-3xl font-bold text-slate-900 dark:text-white">{{ $totalKompetensi }}</p>
-            </div>
-            <div class="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
-                <span class="material-symbols-outlined text-2xl">pending</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row gap-4 justify-between items-center">
+    <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-4 justify-between items-center mb-0">
         <div class="relative w-full sm:max-w-md">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span class="material-symbols-outlined text-slate-400">search</span>
-            </div>
-            <input class="block w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg leading-5 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm" placeholder="Cari Kompetensi..." type="text"/>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+            <input id="searchInput" class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 transition-shadow text-slate-900 dark:text-white" placeholder="Cari Kompetensi..." type="text"/>
         </div>
+        
         <div class="flex gap-2 flex-wrap">
-            <button class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">Semua</button>
-            <button class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Teknis</button>
-            <button class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Managerial</button>
-            <button class="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Kultur Sosial</button>
+            <button type="button" class="btn-filter active px-4 py-2 bg-primary text-white border border-primary rounded-full text-sm font-medium hover:bg-primary/90 transition-colors" data-filter="semua">Semua</button>
+            <button type="button" class="btn-filter px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" data-filter="terpenuhi">Terpenuhi</button>
+            <button type="button" class="btn-filter px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" data-filter="belum">Belum terpenuhi</button>            
         </div>
     </div>
 
     <div id="table-container">
-        <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col mb-8">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                    <thead class="bg-slate-50 dark:bg-slate-900/50">
-                        <tr>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">No</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nama Kompetensi</th>
-                            <th scope="col" class="px-6 py-4 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Kategori</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-                        @forelse($kompetensi as $index => $item)
-                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                                    {{ ($kompetensi->currentPage() - 1) * $kompetensi->perPage() + $loop->iteration }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 dark:text-white">
-                                    {{ $item->nama_kompetensi }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">                                    
-                                    @if($item->kategori == 'Kompetensi Teknis')
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary uppercase tracking-wider">
-                                            {{$item->kategori}}
-                                        </span>
-                                    @elseif($item->kategori == 'Kompetensi Manajerial')
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-500/10 text-orange-600 uppercase tracking-wider">
-                                            {{$item->kategori}}
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase tracking-wider">
-                                            {{$item->kategori}}
-                                        </span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="3" class="px-6 py-8 whitespace-nowrap text-sm text-slate-500 text-center italic">
-                                    Belum ada data kompetensi yang ditetapkan untuk jabatan Anda.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            
-            @if($kompetensi->hasPages())
-                <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 pagination-wrapper">
-                    {{ $kompetensi->links() }}
-                </div>
-            @endif
-        </div>
+        @include('pegawai._table_kompetensi', ['data' => $kompetensi])
     </div>
-    </div>
+    
+</div>
 @endsection
 
 @push('scripts')
 <script>
     $(document).ready(function() {
-        // Event listener untuk klik link pagination
-        $(document).on('click', '.pagination-wrapper a', function(event) {
-            event.preventDefault(); 
+        let currentSearch = '';
+        let currentFilter = 'semua';
+        let typingTimer;
+        
+        function fetchFilteredData(pageUrl = '{{ route("kompetensi.filter") }}') {
+            $('#table-container').css('opacity', '0.5'); 
             
-            let pageUrl = $(this).attr('href');
-            
-            // Berikan efek transparan agar pengguna tahu sedang loading
-            $('#table-container').css('opacity', '0.5');
-
             $.ajax({
                 url: pageUrl,
                 type: 'GET',
+                data: {
+                    search: currentSearch,
+                    filter: currentFilter
+                },
                 success: function(response) {
-                    // Ambil isi HTML dari div #table-container yang baru lalu timpa yang lama
-                    let newTableContent = $(response).find('#table-container').html();
-                    $('#table-container').html(newTableContent);
-                    
-                    // Kembalikan opacity
+                    $('#table-container').html(response);
                     $('#table-container').css('opacity', '1');
                 },
-                error: function() {
-                    alert('Gagal memuat data. Silakan coba lagi.');
+                error: function(xhr) {
+                    console.error("Error AJAX:", xhr.responseText);
                     $('#table-container').css('opacity', '1');
+                    alert('Gagal memuat data tabel. Cek console untuk detail error.');
                 }
             });
+        }
+
+        $('#searchInput').on('keyup', function() {
+            clearTimeout(typingTimer);
+            currentSearch = $(this).val();
+            
+            typingTimer = setTimeout(function() {
+                fetchFilteredData();
+            }, 500);
+        });
+        
+        $('.btn-filter').on('click', function() {
+            $('.btn-filter').removeClass('bg-primary text-white border-primary active')
+                            .addClass('bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300');
+                        
+            $(this).removeClass('bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300')
+                   .addClass('bg-primary text-white border-primary active');
+                        
+            currentFilter = $(this).data('filter');
+            fetchFilteredData();
+        });
+
+        $(document).on('click', '.pagination-wrapper a', function(e) {
+            e.preventDefault();
+            fetchFilteredData($(this).attr('href'));
         });
     });
 </script>

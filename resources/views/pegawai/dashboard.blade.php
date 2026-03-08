@@ -93,52 +93,37 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-    <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6">
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Tren Pengembangan Kompetensi</h3>
-                <p class="text-xs text-slate-500">Persentase progres pemenuhan (Berdasarkan Target Jabatan)</p>
-            </div>
-            <select class="text-sm border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 rounded-lg focus:border-primary focus:ring focus:ring-primary/20 py-1.5 pl-3 pr-8">
-                @foreach($periodeList as $periode)
-                    <option value="{{ $periode->id }}" {{ $periode->status ? 'selected' : '' }}>
-                        Tahun {{ $periode->tahun }}
-                    </option>
-                @endforeach
-            </select>
+<div class="mb-8 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 relative overflow-hidden">  
+    <div class="flex items-center justify-between mb-6 relative z-10">
+        <div>
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Pengembangan Wajib yang Belum Terpenuhi</h3>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Segera ikuti pelatihan di bawah ini untuk memenuhi standar kompetensi jabatan Anda.</p>
         </div>
-        <div class="relative h-80 w-full">
-            <canvas id="competencyChart"></canvas>
-        </div>
+        <a href="{{ route('pengembangan') }}" class="hidden sm:flex items-center text-sm font-semibold text-primary hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg transition-colors">
+            Lihat Semua <span class="material-symbols-outlined text-sm ml-1">arrow_forward</span>
+        </a>
     </div>
-
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 p-6 flex flex-col h-full">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-slate-900 dark:text-white">Pengembangan Wajib</h3>
-            <a href="{{ route('pengembangan') }}" class="text-xs font-semibold text-primary hover:text-blue-700">Lihat Semua</a>
-        </div>
-        
-        <div class="space-y-4 flex-1">
-            @forelse($pengembanganWajib as $wajib)
-                <div class="flex items-start p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-transparent hover:border-slate-200 dark:hover:border-slate-600 transition-colors cursor-pointer group">
-                    <div class="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50 text-primary flex items-center justify-center flex-shrink-0 mt-1 group-hover:bg-white group-hover:shadow-sm transition-all">
-                        <span class="material-symbols-outlined text-xl">menu_book</span>
-                    </div>
-                    <div class="ml-3 flex-1">
-                        <div class="flex justify-between">
-                            <h4 class="text-sm font-semibold text-slate-900 dark:text-white">{{ $wajib->nama_pengembangan }}</h4>
-                        </div>
-                        <span class="text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-900/30 px-2 py-0.5 rounded-full inline-block mt-1">BELUM DIIKUTI</span>
-                    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
+        @forelse($pengembanganWajib as $wajib)
+            <div class="flex items-start p-4 bg-slate-50 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/50 transition-colors cursor-pointer group">
+                <div class="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50 text-primary flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-white group-hover:shadow-md transition-all">
+                    <span class="material-symbols-outlined">menu_book</span>
                 </div>
-            @empty
-                <div class="flex flex-col items-center justify-center h-full text-slate-400">
-                    <span class="material-symbols-outlined text-4xl mb-2">task_alt</span>
-                    <p class="text-sm text-center">Hebat! Anda telah menyelesaikan semua pengembangan yang disyaratkan.</p>
+                <div class="ml-4 flex-1">
+                    <h4 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 leading-tight mb-1">{{ $wajib->nama_pengembangan }}</h4>
+                    <span class="text-[10px] font-bold text-red-600 bg-red-100 dark:bg-red-900/50 px-2 py-0.5 rounded-md inline-flex items-center mt-1">
+                        <span class="material-symbols-outlined text-[10px] mr-1">warning</span> BELUM DIIKUTI
+                    </span>
                 </div>
-            @endforelse
-        </div>
+            </div>
+        @empty
+            <div class="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col items-center justify-center py-10 text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                <span class="material-symbols-outlined text-5xl mb-3 text-emerald-500">task_alt</span>
+                <p class="text-base font-medium text-slate-700 dark:text-slate-300">Hebat! Tidak ada tanggungan.</p>
+                <p class="text-sm text-center mt-1">Anda telah menyelesaikan semua pengembangan wajib yang disyaratkan.</p>
+            </div>
+        @endforelse
     </div>
 </div>
 
@@ -193,116 +178,3 @@
     </div>
 </div>
 @endsection
-
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const ctx = document.getElementById('competencyChart').getContext('2d');
-        const isDarkMode = document.documentElement.classList.contains('dark');
-        
-        // Setup Gradient
-        let gradientBlue = ctx.createLinearGradient(0, 0, 0, 300);
-        gradientBlue.addColorStop(0, 'rgba(14, 165, 233, 0.2)'); // bg-primary (sky-500)
-        gradientBlue.addColorStop(1, 'rgba(14, 165, 233, 0)');
-        
-        let gradientGreen = ctx.createLinearGradient(0, 0, 0, 300);
-        gradientGreen.addColorStop(0, 'rgba(132, 204, 22, 0.2)'); // bg-secondary (lime-500)
-        gradientGreen.addColorStop(1, 'rgba(132, 204, 22, 0)');
-
-        // Ambil data dari Controller
-        const labels = @json($chartBulan);
-        const dataTeknis = @json($chartTeknis);
-        const dataManajerial = @json($chartManajerial);
-
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Kompetensi Teknis',
-                        data: dataTeknis,
-                        borderColor: '#0ea5e9', 
-                        backgroundColor: gradientBlue,
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#0ea5e9',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    },
-                    {
-                        label: 'Kompetensi Manajerial',
-                        data: dataManajerial,
-                        borderColor: '#84cc16', 
-                        backgroundColor: gradientGreen,
-                        borderWidth: 2,
-                        tension: 0.4,
-                        fill: true,
-                        pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#84cc16',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        align: 'end',
-                        labels: {
-                            color: isDarkMode ? '#cbd5e1' : '#64748b', 
-                            font: { family: 'Inter', size: 12 },
-                            usePointStyle: true,
-                            boxWidth: 8
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                        titleColor: isDarkMode ? '#f8fafc' : '#0f172a',
-                        bodyColor: isDarkMode ? '#cbd5e1' : '#475569',
-                        borderColor: isDarkMode ? '#334155' : '#e2e8f0',
-                        borderWidth: 1,
-                        padding: 10,
-                        usePointStyle: true
-                    }
-                },
-                scales: {
-                    y: {
-                        min: 0, // Ubah dari 50 ke 0 agar rentang persennya valid (0-100%)
-                        max: 100,
-                        grid: {
-                            color: isDarkMode ? '#334155' : '#f1f5f9',
-                            borderDash: [5, 5]
-                        },
-                        ticks: { 
-                            color: isDarkMode ? '#94a3b8' : '#94a3b8',
-                            callback: function(value) {
-                                return value + '%'; // Menambahkan simbol persen di sumbu Y
-                            }
-                        },
-                        border: { display: false }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: isDarkMode ? '#94a3b8' : '#94a3b8' },
-                        border: { display: false }
-                    }
-                },
-                interaction: {
-                    intersect: false,
-                    mode: 'index',
-                },
-            }
-        });
-    });
-</script>
-@endpush
