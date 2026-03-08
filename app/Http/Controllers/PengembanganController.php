@@ -11,7 +11,133 @@ use Illuminate\Support\Facades\Storage;
 
 class PengembanganController extends Controller
 {
-    public function pengembangan(Request $request)
+    public function index(Request $request)
+    {
+        $search = $request->input('search');
+        $query = DB::table('pengembangan')->orderBy('nama_pengembangan');
+
+        if (!empty($search)) {
+            $query->where('nama_pengembangan', 'like', '%' . $search . '%');
+        }
+
+        $pengembangan = $query->paginate(10);
+
+        // Ambil jumlah kompetensi untuk ditampilkan di tabel
+        $pengembanganIds = $pengembangan->pluck('id')->toArray();
+        $mappings = DB::table('pengembangan_kompetensi')
+            ->whereIn('id_pengembangan', $pengembanganIds)
+            ->select('id_pengembangan', DB::raw('count(*) as total'))
+            ->groupBy('id_pengembangan')
+            ->pluck('total', 'id_pengembangan')
+            ->toArray();
+
+        foreach($pengembangan as $p) {
+            $p->jumlah_kompetensi = $mappings[$p->id] ?? 0;
+        }
+
+        if ($request->ajax()) {
+            return view('admin._table_pengembangan', compact('pengembangan'))->render();
+        }
+
+        return view('admin.pengembangan', compact('pengembangan'));
+    }
+
+    // 2. Simpan Data Pengembangan (Tanpa Mapping)
+    public function store(Request $request)
+    {
+        $request->validate(['nama_pengembangan' => 'required|string|max:255']);
+        $id = $request->input('id');
+
+        if ($id) {
+            DB::table('pengembangan')->where('id', $id)->update([
+                'nama_pengembangan' => $request->nama_pengembangan,
+                'updated_at' => now()
+            ]);
+            $message = 'Program pengembangan berhasil diperbarui!';
+        } else {
+            DB::table('pengembangan')->insert([
+                'nama_pengembangan' => $request->nama_pengembangan,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+            $message = 'Program pengembangan baru berhasil ditambahkan!';
+        }
+
+        return response()->json(['success' => true, 'message' => $message]);
+    }
+
+    // 3. Hapus Data
+    public function destroy($id)
+    {
+        $dipakai = DB::table('riwayat_pengembangan')->where('id_pengembangan', $id)->exists();
+        if ($dipakai) {
+            return response()->json(['success' => false, 'message' => 'Gagal! Pengembangan ini sudah ada di riwayat pegawai.'], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            DB::table('pengembangan_kompetensi')->where('id_pengembangan', $id)->delete();
+            DB::table('pengembangan')->where('id', $id)->delete();
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Berhasil dihapus!']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan.'], 500);
+        }
+    }
+
+    // =========================================================================
+    // FITUR BARU: HALAMAN PEMETAAN (SAMA SEPERTI JABATAN)
+    // =========================================================================
+
+    public function kompetensi($id)
+    {
+        $pengembangan = DB::table('pengembangan')->where('id', $id)->first();
+        if (!$pengembangan) abort(404);
+
+        $kompetensi = DB::table('kompetensi')->orderBy('kategori')->orderBy('nama_kompetensi')->get();
+        $kategoriList = $kompetensi->groupBy('kategori');
+
+        $mappedIds = DB::table('pengembangan_kompetensi')
+            ->where('id_pengembangan', $id)
+            ->whereNull('akhir_berlaku')
+            ->pluck('id_kompetensi')
+            ->toArray();
+
+        return view('admin.pengembangan_kompetensi', compact('pengembangan', 'kategoriList', 'mappedIds'));
+    }
+
+    public function updateKompetensi(Request $request, $id)
+    {
+        $kompetensiIds = $request->input('kompetensi', []);
+        $today = now()->toDateString();
+
+        DB::beginTransaction();
+        try {
+            DB::table('pengembangan_kompetensi')->where('id_pengembangan', $id)->delete();
+            
+            $insertData = [];
+            foreach($kompetensiIds as $k_id) {
+                $insertData[] = [
+                    'id_pengembangan' => $id,
+                    'id_kompetensi' => $k_id,
+                    'mulai_berlaku' => $today,
+                    'akhir_berlaku' => null
+                ];
+            }
+
+            if(!empty($insertData)) {
+                DB::table('pengembangan_kompetensi')->insert($insertData);
+            }
+            DB::commit();
+            return redirect()->route('pengembangan')->with('success', 'Output kompetensi berhasil diperbarui!');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Terjadi kesalahan saat menyimpan data.');
+        }
+    }
+
+    public function pengembanganPegawai(Request $request)
     {
         $pegawai = Auth::user();
         $nip = $pegawai->nip;

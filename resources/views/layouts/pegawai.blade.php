@@ -105,8 +105,12 @@
             
             <div class="flex items-center gap-6">                        
                 <div class="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-700">
-                    <div class="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center ring-2 ring-slate-100 dark:ring-slate-800">
-                        <span class="material-symbols-outlined text-[18px]">person</span>
+                    <div class="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center ring-2 ring-slate-100 dark:ring-slate-800 overflow-hidden">
+                        @if(Auth::user()->foto_profil)
+                            <img src="{{ asset('storage/' . Auth::user()->foto_profil) }}" alt="Foto Profil" class="w-full h-full object-cover">
+                        @else
+                            <span class="material-symbols-outlined text-[18px]">person</span>
+                        @endif
                     </div>
                     <div class="hidden lg:block">
                         <p class="text-sm font-semibold text-slate-800 dark:text-white leading-tight">{{ Auth::user()->nama ?? 'Pegawai' }}</p>
