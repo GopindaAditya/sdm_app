@@ -60,7 +60,7 @@
 
                                     <button type="button" 
                                         class="btn-delete p-2 bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" 
-                                        data-url="{{ route('pengembangan.hapus', $item->id) }}" 
+                                        data-url="{{ route('pengembangan.hapus.sertifikat', $item->id) }}" 
                                         title="Hapus Sertifikat">
                                         <span class="material-symbols-outlined text-[18px]">delete</span>
                                     </button>
