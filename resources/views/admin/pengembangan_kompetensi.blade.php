@@ -115,8 +115,7 @@
                         <option value="">-- Pilih Kategori --</option>
                         <option value="Kompetensi Teknis">Kompetensi Teknis</option>
                         <option value="Kompetensi Manajerial">Kompetensi Manajerial</option>
-                        <option value="Kompetensi Sosial Kultural">Kompetensi Sosial Kultural</option>
-                        <option value="Kompetensi Pemerintahan">Kompetensi Pemerintahan</option>
+                        <option value="Kultur Sosial">Kultur Sosial</option>                        
                     </select>
                 </div>
             </div>

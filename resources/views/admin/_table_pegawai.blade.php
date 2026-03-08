@@ -27,10 +27,10 @@
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4">
-                        @if($item->nama_jabatan)
+                    <td class="px-6 py-4">                        
+                        @if($item->jabatan)
                             <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                                {{ $item->nama_jabatan }}
+                                {{ $item->jabatan->nama_jabatan }}
                             </span>
                         @else
                             <span class="text-xs text-slate-400 italic">Belum diatur</span>

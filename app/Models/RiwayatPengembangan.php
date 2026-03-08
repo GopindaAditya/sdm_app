@@ -16,4 +16,14 @@ class RiwayatPengembangan extends Model
         'sertifikat',
         'status'
     ];
+
+    public function pengembangan()
+    {
+        return $this->belongsTo(Pengembangan::class, 'id_pengembangan', 'id');
+    }
+    
+    public function pegawai()
+    {
+        return $this->belongsTo(Pegawai::class, 'nip', 'nip');
+    }
 }
