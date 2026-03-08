@@ -95,7 +95,7 @@ class DatabaseSeeder extends Seeder
                         $kompetensiId = $kompetensi->id;
                     }
                     
-                    if ($kategori === 'Kompetensi Teknis') {
+                    if ($kategori === 'Kompetensi Teknis') {                        
                         $idKompetensiTeknis[] = $kompetensiId;
                     }
                     
@@ -111,7 +111,8 @@ class DatabaseSeeder extends Seeder
             }
 
             $listPengembangan = $detail['Pengembangan'] ?? [];
-            foreach ($listPengembangan as $namaPengembangan) {
+                        
+            foreach ($listPengembangan as $index => $namaPengembangan) {
                 
                 $pengembangan = DB::table('pengembangan')->where('nama_pengembangan', $namaPengembangan)->first();
                 
@@ -124,8 +125,9 @@ class DatabaseSeeder extends Seeder
                 } else {
                     $pengembanganId = $pengembangan->id;
                 }
-                
-                foreach ($idKompetensiTeknis as $idKompTeknis) {
+                                
+                if (isset($idKompetensiTeknis[$index])) {
+                    $idKompTeknis = $idKompetensiTeknis[$index];
                     
                     $cekRelasi = DB::table('pengembangan_kompetensi')
                         ->where('id_pengembangan', $pengembanganId)
@@ -157,6 +159,6 @@ class DatabaseSeeder extends Seeder
             ]
         ]);
 
-        $this->command->info('Seeder Arsitektur SDM Selesai dengan Relasi Absolut!');
+        $this->command->info('Seeder Done');
     }
 }

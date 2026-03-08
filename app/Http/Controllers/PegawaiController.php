@@ -3,11 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\KompetensiPegawai;
-use App\Models\Periode;
-use App\Models\SyaratKompetensi;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PegawaiController extends Controller
 {    
@@ -16,67 +13,71 @@ class PegawaiController extends Controller
         $pegawai = Auth::guard('pegawai')->user()->load('jabatan');
         
         return view('pegawai.profil', compact('pegawai'));
-    }
-
-    public function kompetensi(Request $request)
+    }    
+    
+    public function dashboard()
     {
-        $pegawai = Auth::guard('pegawai')->user();
-        
-        $semuaPeriode = Periode::orderBy('tahun', 'desc')->get();
-        $periodeAktif = Periode::where('status', 'Aktif')->first();
-        $selectedPeriodeId = $request->input('periode_id', $periodeAktif ? $periodeAktif->id : null);
-        
-        $search = $request->input('search');
-        $selectedKategori = $request->input('kategori');
-        $selectedStatus = $request->input('status'); // Ambil filter status baru
+        $pegawai = Auth::user()->load('jabatan');
+        $nip = $pegawai->nip;
+        $today = now()->toDateString();
 
-        $kategoriList = ['Kompetensi Manajerial', 'Kompetensi Teknis', 'Kultur Sosial'];
+        // 1. Sapaan Berdasarkan Waktu
+        $hour = date('H');
+        if ($hour < 11) { $sapaan = 'Selamat Pagi'; }
+        elseif ($hour < 15) { $sapaan = 'Selamat Siang'; }
+        elseif ($hour < 18) { $sapaan = 'Selamat Sore'; }
+        else { $sapaan = 'Selamat Malam'; }
 
-        $syaratKompetensi = collect();
-        $kompetensiDimilikiIds = [];
-
-        if ($pegawai->id_jabatan && $selectedPeriodeId) {
-            
-            // 1. Ambil ID kompetensi yang SUDAH dimiliki (pindah ke atas agar bisa dipakai filter)
-            $kompetensiDimilikiIds = KompetensiPegawai::where('nip', $pegawai->nip)
-                ->where('id_periode', $selectedPeriodeId)
-                ->pluck('id_kompetensi')
-                ->toArray();
-
-            // 2. Base Query
-            $query = SyaratKompetensi::with('kompetensi')
+        // 2. Ambil ID Kompetensi sesuai jabatan saat ini
+        $kompetensiIds = [];
+        if ($pegawai->jabatan) {
+            $kompetensiIds = DB::table('jabatan_kompetensi')
                 ->where('id_jabatan', $pegawai->id_jabatan)
-                ->where('id_periode', $selectedPeriodeId);
-
-            // 3. Filter Search & Kategori
-            if ($search || $selectedKategori) {
-                $query->whereHas('kompetensi', function ($q) use ($search, $selectedKategori) {
-                    if ($selectedKategori) $q->where('kategori', $selectedKategori);
-                    if ($search) {
-                        $q->where(function($subQ) use ($search) {
-                            $subQ->where('nama_kompetensi', 'like', '%' . $search . '%')
-                                 ->orWhere('kategori', 'like', '%' . $search . '%');
-                        });
-                    }
-                });
-            }
-
-            // 4. LOGIKA FILTER STATUS KEPEMILIKAN
-            if ($selectedStatus === 'dimiliki') {
-                // Tampilkan hanya yang ID-nya ada di dalam array $kompetensiDimilikiIds
-                $query->whereIn('id_kompetensi', $kompetensiDimilikiIds);
-            } elseif ($selectedStatus === 'belum_dimiliki') {
-                // Tampilkan hanya yang ID-nya TIDAK ADA di dalam array
-                $query->whereNotIn('id_kompetensi', $kompetensiDimilikiIds);
-            }
-
-            // 5. Eksekusi
-            $syaratKompetensi = $query->get();
+                ->where('mulai_berlaku', '<=', $today)
+                ->where(function ($q) use ($today) {
+                    $q->whereNull('akhir_berlaku')->orWhere('akhir_berlaku', '>=', $today);
+                })->pluck('id_kompetensi')->toArray();
         }
+        $totalKompetensi = count($kompetensiIds);
 
-        return view('pegawai.kompetensi', compact(
-            'semuaPeriode', 'selectedPeriodeId', 'syaratKompetensi', 
-            'kompetensiDimilikiIds', 'search', 'selectedKategori', 'kategoriList', 'selectedStatus'
+        // 3. Hitung Target Pengembangan
+        $pengembanganDibutuhkan = DB::table('pengembangan_kompetensi')
+            ->whereIn('id_kompetensi', $kompetensiIds)
+            ->where('mulai_berlaku', '<=', $today)
+            ->where(function ($q) use ($today) {
+                $q->whereNull('akhir_berlaku')->orWhere('akhir_berlaku', '>=', $today);
+            })
+            ->pluck('id_pengembangan')->unique()->toArray();
+        $totalTargetPengembangan = count($pengembanganDibutuhkan);
+
+        // 4. Hitung Status Riwayat Pengembangan
+        $riwayatSelesai = DB::table('riwayat_pengembangan')->where('nip', $nip)->where('status', 'approved')->count();
+        $riwayatPending = DB::table('riwayat_pengembangan')->where('nip', $nip)->where('status', 'pending')->count();
+        $riwayatBelum = max(0, $totalTargetPengembangan - ($riwayatSelesai + $riwayatPending));
+
+        // 5. Ambil Semua Pengembangan Wajib yang BELUM diikuti
+        $pengembanganWajib = DB::table('pengembangan')
+            ->whereIn('id', $pengembanganDibutuhkan)
+            ->whereNotIn('id', function($q) use ($nip) {
+                $q->select('id_pengembangan')->from('riwayat_pengembangan')
+                  ->where('nip', $nip)->whereIn('status', ['approved', 'pending']);
+            })
+            ->get(); // Hapus limit(3) agar muncul semua di grid
+
+        // 6. Tabel Riwayat Pembaruan Terakhir (5 Data)
+        $riwayatTerbaru = DB::table('riwayat_pengembangan')
+            ->join('pengembangan', 'riwayat_pengembangan.id_pengembangan', '=', 'pengembangan.id')
+            ->select('pengembangan.nama_pengembangan', 'riwayat_pengembangan.status', 'riwayat_pengembangan.tanggal_kegiatan', 'riwayat_pengembangan.updated_at')
+            ->where('riwayat_pengembangan.nip', $nip)
+            ->orderByDesc('riwayat_pengembangan.updated_at')
+            ->limit(5)
+            ->get();
+
+        // Hapus $periodeList dan variabel chart dari compact()
+        return view('pegawai.dashboard', compact(
+            'pegawai', 'sapaan', 'totalKompetensi', 'totalTargetPengembangan', 
+            'riwayatSelesai', 'riwayatPending', 'riwayatBelum', 
+            'pengembanganWajib', 'riwayatTerbaru'
         ));
     }
 }

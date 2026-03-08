@@ -12,4 +12,8 @@ class Kompetensi extends Model
         'nama_kompetensi', 
         'kategori'
     ];
+
+    public function pengembangan(){
+        return $this->belongsToMany(Pengembangan::class, 'pengembangan_kompetensi','id_kompetensi', 'id_pengembangan');
+    }
 }
