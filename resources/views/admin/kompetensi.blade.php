@@ -60,7 +60,7 @@
                         <option value="">-- Pilih Kategori --</option>
                         <option value="Kompetensi Teknis">Kompetensi Teknis</option>
                         <option value="Kompetensi Manajerial">Kompetensi Manajerial</option>
-                        <option value="Sosial Kultural">Sosial Kultural</option>                        
+                        <option value="Kultur Sosial">Kultur Sosial</option>                        
                     </select>
                 </div>
             </div>

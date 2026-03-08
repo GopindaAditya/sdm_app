@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Models\Kompetensi;
+use App\Models\Pengembangan;
+use App\Models\RiwayatPengembangan;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -11,29 +13,21 @@ use Illuminate\Support\Facades\Storage;
 
 class PengembanganController extends Controller
 {
+    /*
+    |--------------------------------------------------------------------------
+    | ADMIN
+    |--------------------------------------------------------------------------
+    */
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $query = DB::table('pengembangan')->orderBy('nama_pengembangan');
-
-        if (!empty($search)) {
-            $query->where('nama_pengembangan', 'like', '%' . $search . '%');
-        }
-
-        $pengembangan = $query->paginate(10);
-
-        // Ambil jumlah kompetensi untuk ditampilkan di tabel
-        $pengembanganIds = $pengembangan->pluck('id')->toArray();
-        $mappings = DB::table('pengembangan_kompetensi')
-            ->whereIn('id_pengembangan', $pengembanganIds)
-            ->select('id_pengembangan', DB::raw('count(*) as total'))
-            ->groupBy('id_pengembangan')
-            ->pluck('total', 'id_pengembangan')
-            ->toArray();
-
-        foreach($pengembangan as $p) {
-            $p->jumlah_kompetensi = $mappings[$p->id] ?? 0;
-        }
+        
+        $pengembangan = Pengembangan::when($search, function ($q) use ($search) {
+                $q->where('nama_pengembangan', 'like', "%{$search}%");
+            })
+            ->withCount('kompetensi')
+            ->orderBy('nama_pengembangan')
+            ->paginate(10);
 
         if ($request->ajax()) {
             return view('admin._table_pengembangan', compact('pengembangan'))->render();
@@ -42,66 +36,45 @@ class PengembanganController extends Controller
         return view('admin.pengembangan', compact('pengembangan'));
     }
 
-    // 2. Simpan Data Pengembangan (Tanpa Mapping)
     public function store(Request $request)
     {
         $request->validate(['nama_pengembangan' => 'required|string|max:255']);
-        $id = $request->input('id');
 
-        if ($id) {
-            DB::table('pengembangan')->where('id', $id)->update([
-                'nama_pengembangan' => $request->nama_pengembangan,
-                'updated_at' => now()
-            ]);
-            $message = 'Program pengembangan berhasil diperbarui!';
-        } else {
-            DB::table('pengembangan')->insert([
-                'nama_pengembangan' => $request->nama_pengembangan,
-                'created_at' => now(),
-                'updated_at' => now()
-            ]);
-            $message = 'Program pengembangan baru berhasil ditambahkan!';
-        }
+        Pengembangan::updateOrCreate(
+            ['id' => $request->id],
+            ['nama_pengembangan' => $request->nama_pengembangan]
+        );
 
+        $message = $request->id ? 'Program pengembangan berhasil diperbarui!' : 'Program pengembangan baru berhasil ditambahkan!';
         return response()->json(['success' => true, 'message' => $message]);
     }
 
-    // 3. Hapus Data
     public function destroy($id)
     {
-        $dipakai = DB::table('riwayat_pengembangan')->where('id_pengembangan', $id)->exists();
-        if ($dipakai) {
+        $pengembangan = Pengembangan::findOrFail($id);
+        
+        if ($pengembangan->riwayatPengembangan()->exists()) {
             return response()->json(['success' => false, 'message' => 'Gagal! Pengembangan ini sudah ada di riwayat pegawai.'], 400);
         }
 
-        DB::beginTransaction();
-        try {
-            DB::table('pengembangan_kompetensi')->where('id_pengembangan', $id)->delete();
-            DB::table('pengembangan')->where('id', $id)->delete();
-            DB::commit();
-            return response()->json(['success' => true, 'message' => 'Berhasil dihapus!']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan.'], 500);
-        }
-    }
+        $pengembangan->kompetensi()->detach(); 
+        $pengembangan->delete();
 
-    // =========================================================================
-    // FITUR BARU: HALAMAN PEMETAAN (SAMA SEPERTI JABATAN)
-    // =========================================================================
+        return response()->json(['success' => true, 'message' => 'Berhasil dihapus!']);
+    }
 
     public function kompetensi($id)
     {
-        $pengembangan = DB::table('pengembangan')->where('id', $id)->first();
-        if (!$pengembangan) abort(404);
+        $pengembangan = Pengembangan::findOrFail($id);
+        
+        $kategoriList = Kompetensi::orderBy('kategori')
+            ->orderBy('nama_kompetensi')
+            ->get()
+            ->groupBy('kategori');
 
-        $kompetensi = DB::table('kompetensi')->orderBy('kategori')->orderBy('nama_kompetensi')->get();
-        $kategoriList = $kompetensi->groupBy('kategori');
-
-        $mappedIds = DB::table('pengembangan_kompetensi')
-            ->where('id_pengembangan', $id)
+        $mappedIds = $pengembangan->kompetensi()
             ->whereNull('akhir_berlaku')
-            ->pluck('id_kompetensi')
+            ->pluck('kompetensi.id')
             ->toArray();
 
         return view('admin.pengembangan_kompetensi', compact('pengembangan', 'kategoriList', 'mappedIds'));
@@ -109,85 +82,91 @@ class PengembanganController extends Controller
 
     public function updateKompetensi(Request $request, $id)
     {
+        $pengembangan = Pengembangan::findOrFail($id);
         $kompetensiIds = $request->input('kompetensi', []);
         $today = now()->toDateString();
 
-        DB::beginTransaction();
-        try {
-            DB::table('pengembangan_kompetensi')->where('id_pengembangan', $id)->delete();
-            
-            $insertData = [];
-            foreach($kompetensiIds as $k_id) {
-                $insertData[] = [
-                    'id_pengembangan' => $id,
-                    'id_kompetensi' => $k_id,
-                    'mulai_berlaku' => $today,
-                    'akhir_berlaku' => null
-                ];
-            }
-
-            if(!empty($insertData)) {
-                DB::table('pengembangan_kompetensi')->insert($insertData);
-            }
-            DB::commit();
-            return redirect()->route('pengembangan')->with('success', 'Output kompetensi berhasil diperbarui!');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->with('error', 'Terjadi kesalahan saat menyimpan data.');
+        $syncData = [];
+        foreach($kompetensiIds as $k_id) {
+            $syncData[$k_id] = [
+                'mulai_berlaku' => $today,
+                'akhir_berlaku' => null
+            ];
         }
+
+        $pengembangan->kompetensi()->sync($syncData);
+
+        return redirect()->route('pengembangan')->with('success', 'Output kompetensi berhasil diperbarui!');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PEGAWAI 
+    |--------------------------------------------------------------------------
+    */
+    private function queryPengembanganPegawai($nip, $search = null, $filter = 'semua')
+    {
+        $pegawai = Auth::user();
+        $today = now()->toDateString();
+        
+        $idKompetensiWajib = DB::table('jabatan_kompetensi')
+            ->where('id_jabatan', $pegawai->id_jabatan)
+            ->where('mulai_berlaku', '<=', $today)
+            ->where(function($q) use ($today) {
+                $q->whereNull('akhir_berlaku')->orWhere('akhir_berlaku', '>=', $today);
+            })
+            ->pluck('id_kompetensi');
+        
+        $query = Pengembangan::whereHas('kompetensi', function($q) use ($idKompetensiWajib, $today) {
+                $q->whereIn('kompetensi.id', $idKompetensiWajib)
+                  ->where('pengembangan_kompetensi.mulai_berlaku', '<=', $today)
+                  ->where(function($sub) use ($today) {
+                      $sub->whereNull('pengembangan_kompetensi.akhir_berlaku')
+                          ->orWhere('pengembangan_kompetensi.akhir_berlaku', '>=', $today);
+                  });
+            })
+            ->with(['riwayatPengembangan' => function($q) use ($nip) {
+                $q->where('nip', $nip);
+            }])
+            ->when($search, function($q) use ($search) {
+                $q->where('nama_pengembangan', 'like', "%{$search}%");
+            });
+
+        $data = $query->get()->map(function($item) {
+            $riwayat = $item->riwayatPengembangan->first();
+            $item->status_pengembangan = $riwayat ? $riwayat->status : 'Belum Mengikuti';
+            $item->tanggal_kegiatan = $riwayat ? $riwayat->tanggal_kegiatan : null;
+            $item->sertifikat = $riwayat ? $riwayat->sertifikat : null;
+            $item->updated_at = $riwayat ? $riwayat->updated_at : null;
+            return $item;
+        });
+        
+        if ($filter == 'selesai') {
+            $data = $data->where('status_pengembangan', 'approved');
+        } elseif ($filter == 'pending') {
+            $data = $data->whereIn('status_pengembangan', ['Menunggu Review', 'pending']);
+        } elseif ($filter == 'belum') {
+            $data = $data->whereIn('status_pengembangan', ['Belum Mengikuti', 'rejected']);
+        }
+
+        return $data->sortByDesc('status_pengembangan')->values();
     }
 
     public function pengembanganPegawai(Request $request)
     {
-        $pegawai = Auth::user();
-        $nip = $pegawai->nip;
-        $today = now()->toDateString();
+        $nip = Auth::user()->nip;
+        $semuaData = $this->queryPengembanganPegawai($nip);
 
-        $baseQuery = DB::table('pengembangan as pg')
-            ->select(
-                'pg.id',
-                'pg.nama_pengembangan',
-                DB::raw("COALESCE(rp.status, 'Belum Mengikuti') AS status_pengembangan"),
-                'rp.tanggal_kegiatan',
-                'rp.sertifikat',
-                'rp.updated_at'
-            )
-            ->join('pengembangan_kompetensi as pk', 'pg.id', '=', 'pk.id_pengembangan')
-            ->join('jabatan_kompetensi as jk', 'pk.id_kompetensi', '=', 'jk.id_kompetensi')
-            ->join('pegawai as p', 'jk.id_jabatan', '=', 'p.id_jabatan')
-            ->leftJoin('riwayat_pengembangan as rp', function($join) use ($nip) {
-                $join->on('pg.id', '=', 'rp.id_pengembangan')
-                     ->where('rp.nip', '=', $nip);
-            })
-            ->where('p.nip', '=', $nip)
-            ->where('jk.mulai_berlaku', '<=', $today)
-            ->where(function ($query) use ($today) {
-                $query->whereNull('jk.akhir_berlaku')->orWhere('jk.akhir_berlaku', '>=', $today);
-            })
-            ->where('pk.mulai_berlaku', '<=', $today)
-            ->where(function ($query) use ($today) {
-                $query->whereNull('pk.akhir_berlaku')->orWhere('pk.akhir_berlaku', '>=', $today);
-            })
-            ->distinct()
-            ->orderByDesc('status_pengembangan')
-            ->orderBy('pg.nama_pengembangan');                    
-        $semuaData = $baseQuery->get();
-        
         $totalPengembangan = $semuaData->count();
         $totalSelesai = $semuaData->where('status_pengembangan', 'approved')->count();
         $totalBelum = $semuaData->whereIn('status_pengembangan', ['Belum Mengikuti', 'rejected'])->count();
         
-        $currentPage = LengthAwarePaginator::resolveCurrentPage();
-        $perPage = 10;
-                
-        $currentItems = $semuaData->slice(($currentPage - 1) * $perPage, $perPage)->values();
-        
         $pengembangan = new LengthAwarePaginator(
-            $currentItems,
+            $semuaData->forPage($request->page ?? 1, 10),
             $totalPengembangan,
-            $perPage,
-            $currentPage,
-            ['path' => route('pengembangan.filter')]
+            10,
+            $request->page ?? 1,
+            ['path' => route('pengembangan')]
         );
 
         return view('pegawai.pengembangan', compact('pengembangan', 'totalPengembangan', 'totalSelesai', 'totalBelum'));
@@ -195,136 +174,76 @@ class PengembanganController extends Controller
 
     public function filterDataPengembangan(Request $request)
     {
-        $nip = Auth::guard('pegawai')->user()->nip;
-        $today = now()->toDateString();
-        
-        $search = $request->input('search');
-        $filter = $request->input('filter', 'semua');
+        $nip = Auth::user()->nip;
+        $semuaData = $this->queryPengembanganPegawai($nip, $request->search, $request->filter);
 
-        $baseQuery = DB::table('pengembangan as pg')
-            ->select('pg.id', 'pg.nama_pengembangan', DB::raw("COALESCE(rp.status, 'Belum Mengikuti') AS status_pengembangan"), 'rp.tanggal_kegiatan', 'rp.sertifikat', 'rp.updated_at')
-            ->join('pengembangan_kompetensi as pk', 'pg.id', '=', 'pk.id_pengembangan')
-            ->join('jabatan_kompetensi as jk', 'pk.id_kompetensi', '=', 'jk.id_kompetensi')
-            ->join('pegawai as p', 'jk.id_jabatan', '=', 'p.id_jabatan')
-            ->leftJoin('riwayat_pengembangan as rp', function($join) use ($nip) {
-                $join->on('pg.id', '=', 'rp.id_pengembangan')->where('rp.nip', '=', $nip);
-            })
-            ->where('p.nip', '=', $nip)
-            ->where('jk.mulai_berlaku', '<=', $today)
-            ->where(function ($query) use ($today) { $query->whereNull('jk.akhir_berlaku')->orWhere('jk.akhir_berlaku', '>=', $today); })
-            ->where('pk.mulai_berlaku', '<=', $today)
-            ->where(function ($query) use ($today) { $query->whereNull('pk.akhir_berlaku')->orWhere('pk.akhir_berlaku', '>=', $today); })
-            ->distinct();
-
-        // Terapkan Search
-        if (!empty($search)) {
-            $baseQuery->where('pg.nama_pengembangan', 'like', '%' . $search . '%');
-        }
-
-        $semuaData = $baseQuery->get();
-
-        // Terapkan Filter
-        if ($filter == 'selesai') {
-            $semuaData = $semuaData->where('status_pengembangan', 'approved');
-        } elseif ($filter == 'pending') {
-            $semuaData = $semuaData->whereIn('status_pengembangan', ['Menunggu Review', 'pending']);
-        } elseif ($filter == 'belum') {
-            $semuaData = $semuaData->whereIn('status_pengembangan', ['Belum Mengikuti', 'rejected']);
-        }
-
-        $semuaData = $semuaData->sortByDesc('status_pengembangan')->sortBy('nama_pengembangan')->values();
-
-        $currentPage = LengthAwarePaginator::resolveCurrentPage();
-        $perPage = 10;
-        $currentItems = $semuaData->slice(($currentPage - 1) * $perPage, $perPage)->values();
-        
         $pengembangan = new LengthAwarePaginator(
-            $currentItems, $semuaData->count(), $perPage, $currentPage,
-            // Arahkan link pagination AJAX ke route filter ini
-            ['path' => route('pengembangan.filter')] 
+            $semuaData->forPage($request->page ?? 1, 10),
+            $semuaData->count(),
+            10,
+            $request->page ?? 1,
+            ['path' => route('pengembangan.filter')]
         );
 
-        // HANYA RENDER FILE TABEL KECIL (Ini yang bikin sangat cepat!)
         return view('pegawai._table_pengembangan', compact('pengembangan'))->render();
     }
-    
+
     public function uploadSertifikat(Request $request)
     {
         $request->validate([
             'id_pengembangan' => 'required|exists:pengembangan,id',
             'tanggal_kegiatan' => 'required|date',
-            // File jadi nullable agar bisa sekadar edit tanggal tanpa upload ulang file
             'sertifikat' => 'nullable|mimes:pdf,jpg,jpeg,png|max:2048', 
         ]);
 
-        $nip = Auth::guard('pegawai')->user()->nip;
-        $id_pengembangan = $request->id_pengembangan;
+        $nip = Auth::user()->nip;
+        $riwayat = RiwayatPengembangan::where('nip', $nip)
+            ->where('id_pengembangan', $request->id_pengembangan)
+            ->first();
 
-        // Cek data lama
-        $riwayatLama = DB::table('riwayat_pengembangan')->where('nip', $nip)->where('id_pengembangan', $id_pengembangan)->first();
-
-        // Validasi Manual: Jika data baru tapi file kosong, tolak!
-        if (!$riwayatLama && !$request->hasFile('sertifikat')) {
-            if ($request->ajax()) {
-                return response()->json(['success' => false, 'message' => 'Sertifikat wajib diunggah untuk data baru.'], 422);
-            }
-            return back()->with('error', 'Sertifikat wajib diunggah.');
+        if (!$riwayat && !$request->hasFile('sertifikat')) {
+            return response()->json(['success' => false, 'message' => 'Sertifikat wajib diunggah untuk data baru.'], 422);
         }
 
-        // Default: pakai nama file lama
-        $filename = $riwayatLama ? $riwayatLama->sertifikat : null;
+        $filename = $riwayat ? $riwayat->sertifikat : null;
 
-        // Jika user mengunggah file baru, proses filenya
         if ($request->hasFile('sertifikat')) {
+            if ($filename) Storage::disk('public')->delete('sertifikat/' . $filename);
+            
             $file = $request->file('sertifikat');
             $filename = time() . '_' . $file->getClientOriginalName();
             $file->storeAs('sertifikat', $filename, 'public');
-            
-            // Hapus file lama jika ada
-            if ($riwayatLama && $riwayatLama->sertifikat) {
-                Storage::disk('public')->delete('sertifikat/' . $riwayatLama->sertifikat);
-            }
         }
-        
-        DB::table('riwayat_pengembangan')->updateOrInsert(
-            ['nip' => $nip, 'id_pengembangan' => $id_pengembangan, 'id_periode' => 1],
-            ['tanggal_kegiatan' => $request->tanggal_kegiatan, 'sertifikat' => $filename, 'status' => 'pending', 'updated_at' => now()]
+
+        RiwayatPengembangan::updateOrCreate(
+            ['nip' => $nip, 'id_pengembangan' => $request->id_pengembangan],
+            [
+                'id_periode' => 1, 
+                'tanggal_kegiatan' => $request->tanggal_kegiatan,
+                'sertifikat' => $filename,
+                'status' => 'pending'
+            ]
         );
 
-        if ($request->ajax()) {
-            return response()->json(['success' => true, 'message' => 'Data berhasil disimpan.']);
-        }
-        return back()->with('success', 'Data berhasil disimpan.');
+        return response()->json(['success' => true, 'message' => 'Data berhasil disimpan.']);
     }
 
     public function hapusSertifikat(Request $request, $id_pengembangan)
     {
-        $nip = Auth::guard('pegawai')->user()->nip; 
-        
-        $riwayat = DB::table('riwayat_pengembangan')->where('nip', $nip)->where('id_pengembangan', $id_pengembangan)->first();
+        $nip = Auth::user()->nip;
+        $riwayat = RiwayatPengembangan::where('nip', $nip)->where('id_pengembangan', $id_pengembangan)->first();
 
         if ($riwayat) {
             if ($riwayat->status == 'approved') {
-                return request()->ajax() 
-                    ? response()->json(['success' => false, 'message' => 'Sertifikat disetujui tidak dapat dihapus.'], 403)
-                    : back()->with('error', 'Sertifikat disetujui tidak dapat dihapus.');
+                return response()->json(['success' => false, 'message' => 'Sertifikat disetujui tidak dapat dihapus.'], 403);
             }
 
-            if ($riwayat->sertifikat) {
-                Storage::disk('public')->delete('sertifikat/' . $riwayat->sertifikat);
-            }
+            if ($riwayat->sertifikat) Storage::disk('public')->delete('sertifikat/' . $riwayat->sertifikat);
+            $riwayat->delete();
 
-            DB::table('riwayat_pengembangan')->where('nip', $nip)->where('id_pengembangan', $id_pengembangan)->delete();
-
-            if ($request->ajax()) {
-                return response()->json(['success' => true, 'message' => 'Sertifikat berhasil dihapus.']);
-            }
-            return back()->with('success', 'Data sertifikat berhasil dihapus.');
+            return response()->json(['success' => true, 'message' => 'Sertifikat berhasil dihapus.']);
         }
 
-        if ($request->ajax()) {
-            return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
-        }
-        return back()->with('error', 'Data tidak ditemukan.');
-    }    
+        return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
+    }
 }

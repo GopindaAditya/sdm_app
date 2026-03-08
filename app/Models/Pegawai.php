@@ -15,22 +15,22 @@ class Pegawai extends Authenticatable
 
     protected $fillable = [
         'nip',
+        'nama',
+        'id_jabatan',
         'password',
-        'name',
-        'id_jabatan'
-    ]; 
+        'foto_profil'
+    ];
 
     protected $hidden = [
         'password'
     ];
 
-    public function jabatan()
-    {
+    public function jabatan() {
         return $this->belongsTo(Jabatan::class, 'id_jabatan');
     }
-
-    public function riwayatPengembangan(){
-        return $this->hasMany(RiwayatPengembangan::class, 'nip');
+    
+    public function riwayatPengembangan() {
+        return $this->hasMany(RiwayatPengembangan::class, 'nip', 'nip');
     }
     
 }
