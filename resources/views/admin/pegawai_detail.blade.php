@@ -56,7 +56,7 @@
                 <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                     @forelse($riwayat as $r)
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors {{ $r->status == 'pending' ? 'bg-amber-50/30 dark:bg-amber-900/10' : '' }}">
-                            <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">{{ $r->nama_pengembangan }}</td>
+                            <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">{{ $r->pengembangan->nama_pengembangan }}</td>
                             <td class="px-6 py-4 text-center">{{ \Carbon\Carbon::parse($r->tanggal_kegiatan)->format('d M Y') }}</td>
                             <td class="px-6 py-4 text-center">
                                 @if($r->sertifikat)
@@ -125,8 +125,9 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                     @forelse($standarKompetensi as $index => $komp)
-                        @php
-                            $terpenuhi = in_array($komp->id, $kompetensiTerpenuhiIds);
+                        @php                            
+                            $terpenuhi = array_key_exists($komp->id, $kompetensiTerpenuhi);
+                            $sumberVerif = $terpenuhi ? $kompetensiTerpenuhi[$komp->id] : null;
                         @endphp
                         
                         <tr id="row-komp-{{ $komp->id }}" class="row-kompetensi hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors {{ !$terpenuhi ? 'bg-red-50/30 dark:bg-red-900/10' : '' }}">
@@ -135,9 +136,22 @@
                                 <span class="nama-komp font-medium {{ !$terpenuhi ? 'text-red-700 dark:text-red-400' : 'text-slate-900 dark:text-white' }}">
                                     {{ $komp->nama_kompetensi }}
                                 </span>
+                                
                                 <div class="ket-verifikasi-langsung mt-1">
-                                    @if(in_array($komp->id, $kompBisaDiklat))
-                                        <span class="w-max text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-200">Via Sertifikat</span>
+                                    @if($terpenuhi)
+                                        @if($sumberVerif == 'Admin')
+                                            <p class="text-[10px] text-primary flex items-center gap-1 mt-1 font-semibold">
+                                                <span class="material-symbols-outlined text-[12px]">how_to_reg</span> Diverifikasi Langsung Admin
+                                            </p>
+                                        @elseif($sumberVerif == 'Sertifikat')
+                                            <p class="text-[10px] text-emerald-600 flex items-center gap-1 mt-1 font-semibold">
+                                                <span class="material-symbols-outlined text-[12px]">verified</span> Via Sertifikat
+                                            </p>
+                                        @endif
+                                    @else
+                                        @if(in_array($komp->id, $kompBisaDiklat))
+                                            <span class="inline-block mt-1 w-max text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-200">Bisa via Diklat</span>
+                                        @endif
                                     @endif
                                 </div>
                             </td>
@@ -206,8 +220,8 @@
 @endsection
 
 @push('scripts')
-<script>
-    // REVISI 8: Fitur Live Search untuk Tabel Kompetensi Pegawai
+<script>    
+    // 1. Fungsi Pencarian Lokal untuk Tabel Kompetensi
     $('#searchKompPegawai').on('keyup', function() {
         let val = $(this).val().toLowerCase();
         $('.row-kompetensi').each(function() {
@@ -218,15 +232,15 @@
                 $(this).hide();
             }
         });
-        
-        // Memperbaiki nomor urut saat filter aktif
+                
+        // Reset penomoran agar urut kembali setelah difilter
         let counter = 1;
         $('.row-kompetensi:visible').each(function() {
             $(this).find('.index-number').text(counter++);
         });
     });
-
-    // FUNGSI 1: VERIFIKASI SERTIFIKAT (Dengan Efek Blur Konsisten)
+    
+    // 2. Fungsi Verifikasi Sertifikat (AJAX)
     function verifikasiSertifikat(id, status) {
         let title = status === 'approved' ? 'Setujui Sertifikat?' : 'Tolak Sertifikat?';
         let textMsg = status === 'approved' ? 'Sertifikat akan disetujui dan kompetensi otomatis diperbarui.' : 'Sertifikat ini akan ditolak secara permanen.';
@@ -239,12 +253,9 @@
             cancelButtonText: 'Batal', reverseButtons: true
         }).then((result) => {
             if (result.isConfirmed) {
-                
-                // 1. Tangkap elemen baris tabel
                 let $rowSertifikat = $(`#status-sertifikat-${id}`).closest('tr');
                 let $actionContainer = $(`#action-sertifikat-${id}`);
-                
-                // 2. Berikan efek BLUR / Opacity dan matikan tombol (KONSISTENSI UI)
+                                
                 $rowSertifikat.css('opacity', '0.5').css('pointer-events', 'none');
                 $actionContainer.find('button').prop('disabled', true);
 
@@ -256,26 +267,31 @@
                     success: function(response) {
                         if(response.success) {
                             Swal.fire({ icon: 'success', title: 'Berhasil', text: response.message, timer: 1500, showConfirmButton: false });
-
-                            // --- DOM MAGIC 1: UPDATE TABEL SERTIFIKAT ---
-                            // Kembalikan Opacity ke normal
+                            
                             $rowSertifikat.css('opacity', '1').css('pointer-events', 'auto');
                             $rowSertifikat.removeClass('bg-amber-50/30 dark:bg-amber-900/10'); 
                             
+                            // Ubah Status Sertifikat di Tabel Atas
                             if (status === 'approved') {
                                 $(`#status-sertifikat-${id}`).html('<span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">Disetujui</span>');
                             } else {
                                 $(`#status-sertifikat-${id}`).html('<span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold">Ditolak</span>');
                             }
                             $actionContainer.html('<span class="text-xs text-slate-400 italic">Telah diverifikasi</span>');
-
-                            // --- DOM MAGIC 2: UPDATE TABEL KOMPETENSI PEGAWAI ---
+                            
+                            // Jika disetujui, update Tabel Kompetensi di bawah secara otomatis
                             if (status === 'approved' && response.kompetensi_baru && response.kompetensi_baru.length > 0) {
                                 response.kompetensi_baru.forEach(function(idKomp) {
                                     let $rowKomp = $(`#row-komp-${idKomp}`);
                                     if ($rowKomp.length > 0) {
+                                        // Hilangkan warna merah
                                         $rowKomp.removeClass('bg-red-50/30 dark:bg-red-900/10');
                                         $rowKomp.find('.nama-komp').removeClass('text-red-700 dark:text-red-400').addClass('text-slate-900 dark:text-white');
+                                        
+                                        // REVISI: Ganti keterangan menjadi "Via Sertifikat" (Gunakan .html(), bukan .append())
+                                        $rowKomp.find('.ket-verifikasi-langsung').html('<p class="text-[10px] text-emerald-600 flex items-center gap-1 mt-1 font-semibold"><span class="material-symbols-outlined text-[12px]">verified</span> Via Sertifikat</p>');
+                                        
+                                        // Ubah Badge & Hilangkan Tombol Manual
                                         $rowKomp.find('.status-badge').html('<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> Terpenuhi</span>');
                                         $rowKomp.find('.action-btn').html('<span class="text-xs text-slate-400 italic">Selesai</span>');
                                     }
@@ -283,8 +299,7 @@
                             }
                         }
                     },
-                    error: function(xhr) {
-                        // Jika gagal, kembalikan opacity agar bisa diklik lagi
+                    error: function(xhr) {                        
                         $rowSertifikat.css('opacity', '1').css('pointer-events', 'auto');
                         $actionContainer.find('button').prop('disabled', false);
                         
@@ -295,19 +310,20 @@
             }
         });
     }
-    // FUNGSI 2: VERIFIKASI LANGSUNG (Tanpa Refresh Halaman)
+
+    // 3. Fungsi Buka Modal Manual
     function bukaModalManual(idKomp, namaKomp) {
         $('#id_komp_manual').val(idKomp);
         $('#nama_komp_display').text(namaKomp);
         $('#modalManual').removeClass('hidden');
     }
 
+    // 4. Fungsi Simpan Verifikasi Manual (AJAX)
     function simpanManual(e) {
         e.preventDefault();
         let $btn = $('#btnManual');
         $btn.prop('disabled', true).text('Menyimpan...');
-
-        // REVISI 6: Mengubah DOM setelah berhasil tanpa me-reload halaman
+        
         $.ajax({
             url: `{{ url('/data-pegawai') }}/{{ $pegawai->nip }}/kompetensi-manual`,
             type: 'POST',
@@ -316,20 +332,16 @@
                 if(response.success) {
                     $('#modalManual').addClass('hidden');
                     Swal.fire({ icon: 'success', title: 'Terpenuhi!', text: response.message, timer: 1500, showConfirmButton: false });
-                    
-                    // -- DOM Manipulation Ajaib (Tanpa Refresh) --
+                                        
                     let idKomp = $('#id_komp_manual').val();
                     let $row = $(`#row-komp-${idKomp}`);
-                    
-                    // 1. Ubah warna background baris (hapus warna merah)
-                    $row.removeClass('bg-red-50/30 dark:bg-red-900/10');
-                    // 2. Ubah warna teks nama kompetensi
-                    $row.find('.nama-komp').removeClass('text-red-700 dark:text-red-400').addClass('text-slate-900 dark:text-white');
-                    // 3. Tambahkan keterangan kecil di bawah namanya
-                    $row.find('.ket-verifikasi-langsung').append('<p class="text-[10px] text-primary flex items-center gap-1 mt-1"><span class="material-symbols-outlined text-[12px]">how_to_reg</span> Diverifikasi Langsung Admin</p>');
-                    // 4. Ubah badge status menjadi hijau
-                    $row.find('.status-badge').html('<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> Terpenuhi</span>');
-                    // 5. Ubah tombol action menjadi teks Selesai
+                                                            
+                    $row.removeClass('bg-red-50/30 dark:bg-red-900/10');                    
+                    $row.find('.nama-komp').removeClass('text-red-700 dark:text-red-400').addClass('text-slate-900 dark:text-white');                    
+                                        
+                    $row.find('.ket-verifikasi-langsung').html('<p class="text-[10px] text-primary flex items-center gap-1 mt-1 font-semibold"><span class="material-symbols-outlined text-[12px]">how_to_reg</span> Diverifikasi Langsung Admin</p>');                    
+                                        
+                    $row.find('.status-badge').html('<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> Terpenuhi</span>');                    
                     $row.find('.action-btn').html('<span class="text-xs text-slate-400 italic">Selesai</span>');
                 }
             },

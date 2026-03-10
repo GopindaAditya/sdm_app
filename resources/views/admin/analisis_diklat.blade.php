@@ -42,14 +42,15 @@
 @push('scripts')
 <script>
     let currentSearch = '';
+    let currentPerPage = 10; 
     let typingTimer;
 
     function fetchTableData(pageUrl = '{{ route("analisis_diklat") }}') {
         $('#table-container').css('opacity', '0.5').css('pointer-events', 'none');
         $.ajax({
             url: pageUrl,
-            type: 'GET',
-            data: { search: currentSearch },
+            type: 'GET',            
+            data: { search: currentSearch, per_page: currentPerPage },
             success: function(response) {
                 $('#table-container').html(response);
                 $('#table-container').css('opacity', '1').css('pointer-events', 'auto');
@@ -60,8 +61,7 @@
             }
         });
     }
-
-    // FUNGSI CETAK: Mengunduh Excel Analisis Diklat
+    
     function cetakLaporan() {
         let url = `{{ route('export_analisis_diklat') }}?search=${currentSearch}`;
         window.location.href = url;
@@ -71,13 +71,20 @@
         });
         Toast.fire({ icon: 'success', title: 'Mengekspor Analisis Diklat...' });
     }
-
+    
     $('#searchData').on('keyup', function() {
         clearTimeout(typingTimer);
         currentSearch = $(this).val();
-        typingTimer = setTimeout(fetchTableData, 500);
+        typingTimer = setTimeout(function() {
+            fetchTableData('{{ route("analisis_diklat") }}'); 
+        }, 500);
     });
-
+    
+    $(document).on('change', '#perPage', function() {
+        currentPerPage = $(this).val();
+        fetchTableData('{{ route("analisis_diklat") }}'); 
+    });
+    
     $(document).on('click', '.pagination-wrapper a', function(e) {
         e.preventDefault(); 
         fetchTableData($(this).attr('href'));

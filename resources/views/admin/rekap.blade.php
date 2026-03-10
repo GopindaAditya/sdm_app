@@ -54,14 +54,15 @@
 <script>
     let currentSearch = '';
     let currentTahun = '{{ $tahun }}';
+    let currentPerPage = 10; 
     let typingTimer;
 
     function fetchTableData(pageUrl = '{{ route("rekap_kompetensi") }}') {
         $('#table-container').css('opacity', '0.5').css('pointer-events', 'none');
         $.ajax({
             url: pageUrl,
-            type: 'GET',
-            data: { search: currentSearch, tahun: currentTahun },
+            type: 'GET',            
+            data: { search: currentSearch, tahun: currentTahun, per_page: currentPerPage },
             success: function(response) {
                 $('#table-container').html(response);
                 $('#table-container').css('opacity', '1').css('pointer-events', 'auto');
@@ -76,27 +77,30 @@
     $('#searchData').on('keyup', function() {
         clearTimeout(typingTimer);
         currentSearch = $(this).val();
-        typingTimer = setTimeout(fetchTableData, 500);
+        typingTimer = setTimeout(function() {
+            fetchTableData('{{ route("rekap_kompetensi") }}'); 
+        }, 500);
     });
-
+    
     $('#filterTahun').on('change', function() {
         currentTahun = $(this).val();
-        fetchTableData();
+        fetchTableData('{{ route("rekap_kompetensi") }}'); 
     });
-
+    
+    $(document).on('change', '#perPage', function() {
+        currentPerPage = $(this).val();
+        fetchTableData('{{ route("rekap_kompetensi") }}'); 
+    });
+    
     $(document).on('click', '.pagination-wrapper a', function(e) {
         e.preventDefault(); 
         fetchTableData($(this).attr('href'));
     });
 
-    function cetakLaporan() {
-        // Ambil filter yang sedang aktif
-        let url = `{{ route('export_rekap_kompetensi') }}?tahun=${currentTahun}&search=${currentSearch}`;
-        
-        // Redirect browser ke rute download
+    function cetakLaporan() {        
+        let url = `{{ route('export_rekap_kompetensi') }}?tahun=${currentTahun}&search=${currentSearch}`;            
         window.location.href = url;
-        
-        // Opsional: Tampilkan notifikasi kecil
+                
         const Toast = Swal.mixin({
             toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true
         });

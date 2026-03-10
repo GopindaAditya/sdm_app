@@ -94,38 +94,45 @@
 <script>
     let currentSearch = '';
     let currentJabatan = 'semua';
+    let currentPerPage = 10; 
     let typingTimer;
 
     function fetchTableData(pageUrl = '{{ route("data_pegawai") }}') {
         $('#table-container').css('opacity', '0.5');
         $.ajax({
             url: pageUrl,
-            type: 'GET',
-            data: { search: currentSearch, jabatan_id: currentJabatan },
+            type: 'GET',            
+            data: { search: currentSearch, jabatan_id: currentJabatan, per_page: currentPerPage },
             success: function(response) {
                 $('#table-container').html(response);
                 $('#table-container').css('opacity', '1');
             }
         });
     }
-
+    
     $('#searchData').on('keyup', function() {
         clearTimeout(typingTimer);
         currentSearch = $(this).val();
-        typingTimer = setTimeout(fetchTableData, 500);
+        typingTimer = setTimeout(function() {
+            fetchTableData('{{ route("data_pegawai") }}'); 
+        }, 500);
     });
-
+    
     $('#filterJabatan').on('change', function() {
         currentJabatan = $(this).val();
-        fetchTableData();
+        fetchTableData('{{ route("data_pegawai") }}'); 
     });
-
+    
+    $(document).on('change', '#perPage', function() {
+        currentPerPage = $(this).val();
+        fetchTableData('{{ route("data_pegawai") }}'); 
+    });
+    
     $(document).on('click', '.pagination-wrapper a', function(e) {
         e.preventDefault(); 
         fetchTableData($(this).attr('href'));
     });
 
-    // Modal Logic
     function openModal(nip = '', nama = '', id_jabatan = '') {
         $('#nip_lama').val(nip);
         $('#nip').val(nip);

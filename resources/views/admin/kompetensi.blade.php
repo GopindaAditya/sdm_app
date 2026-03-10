@@ -81,14 +81,15 @@
 <script>
     let currentSearch = '';
     let currentFilter = 'semua';
+    let currentPerPage = 10; 
     let typingTimer;
 
     function fetchTableData(pageUrl = '{{ route("kompetensi") }}') {
         $('#table-container').css('opacity', '0.5');
         $.ajax({
             url: pageUrl,
-            type: 'GET',
-            data: { search: currentSearch, filter: currentFilter },
+            type: 'GET',            
+            data: { search: currentSearch, filter: currentFilter, per_page: currentPerPage },
             success: function(response) {
                 $('#table-container').html(response);
                 $('#table-container').css('opacity', '1');
@@ -99,25 +100,30 @@
             }
         });
     }
-
-    // Event Pencarian & Filter
+    
     $('#searchKompetensi').on('keyup', function() {
         clearTimeout(typingTimer);
         currentSearch = $(this).val();
-        typingTimer = setTimeout(fetchTableData, 500);
+        typingTimer = setTimeout(function() {
+            fetchTableData('{{ route("kompetensi") }}'); 
+        }, 500);
     });
-
+    
     $('#filterKategori').on('change', function() {
         currentFilter = $(this).val();
-        fetchTableData();
+        fetchTableData('{{ route("kompetensi") }}'); 
     });
 
+    $(document).on('change', '#perPage', function() {
+        currentPerPage = $(this).val();
+        fetchTableData('{{ route("kompetensi") }}'); 
+    });
+    
     $(document).on('click', '.pagination-wrapper a', function(e) {
         e.preventDefault(); 
         fetchTableData($(this).attr('href'));
     });
 
-    // Event Modal
     function openModal(id = null, nama = '', kategori = '') {
         $('#komp_id').val(id);
         $('#nama_kompetensi').val(nama);

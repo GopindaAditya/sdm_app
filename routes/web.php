@@ -52,13 +52,12 @@ Route::middleware('auth:admin,pegawai')->group(function () {
         Route::get('/', function (Request $request) {
             return Auth::guard('admin')->check() 
                 ? app(KompetensiController::class)->index($request) 
-                : app(KompetensiController::class)->kompetensiPegawai();
+                : app(KompetensiController::class)->kompetensiPegawai($request);
         })->name('kompetensi');
 
         // Admin Only Actions
         Route::post('/', [KompetensiController::class, 'store'])->name('kompetensi.tambah');
-        Route::delete('/{id}/hapus', [KompetensiController::class, 'destroy'])->name('kompetensi.hapus');
-        Route::get('/filter', [KompetensiController::class, 'filterDataKompetensi'])->name('kompetensi.filter');
+        Route::delete('/{id}/hapus', [KompetensiController::class, 'destroy'])->name('kompetensi.hapus');        
         Route::post('/quick-add', [KompetensiController::class, 'quickAdd'])->name('kompetensi.quick_add');
     });
 
@@ -80,8 +79,7 @@ Route::middleware('auth:admin,pegawai')->group(function () {
         Route::get('/{id}/kompetensi', [PengembanganController::class, 'kompetensi'])->name('pengembangan.kompetensi');
         Route::post('/{id}/kompetensi', [PengembanganController::class, 'updateKompetensi'])->name('pengembangan.kompetensi.update');
 
-        // Pegawai Actions
-        Route::get('/filter', [PengembanganController::class, 'filterDataPengembangan'])->name('pengembangan.filter');
+        // Pegawai Actions        
         Route::post('/upload', [PengembanganController::class, 'uploadSertifikat'])->name('pengembangan.upload');
         Route::delete('/{id_pengembangan}/hapus-sertifikat', [PengembanganController::class, 'hapusSertifikat'])->name('pengembangan.hapus.sertifikat');
     });

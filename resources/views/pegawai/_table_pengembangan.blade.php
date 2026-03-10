@@ -1,4 +1,26 @@
 <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+    
+    @if($pengembangan->total() > 10)
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
+        <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 font-medium">
+            <span>Tampilkan</span>
+            <select id="perPage" class="py-1 px-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white transition-all cursor-pointer">
+                <option value="10" {{ $perPage == 10 ? 'selected' : '' }}>10</option>
+                <option value="1" {{ $perPage == 1 ? 'selected' : '' }}>1</option>
+                <option value="25" {{ $perPage == 25 ? 'selected' : '' }}>25</option>
+                <option value="50" {{ $perPage == 50 ? 'selected' : '' }}>50</option>
+                <option value="100" {{ $perPage == 100 ? 'selected' : '' }}>100</option>
+                <option value="semua" {{ $perPage === 'semua' || $perPage == $pengembangan->total() ? 'selected' : '' }}>Semua</option>
+            </select>
+            <span>data</span>
+        </div>
+        
+        {{-- <div class="text-sm text-slate-500 dark:text-slate-400">
+            Total <span class="font-bold text-slate-700 dark:text-slate-300">{{ $pengembangan->total() }}</span> program
+        </div> --}}
+    </div>
+    @endif
+
     <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
             <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
@@ -23,7 +45,7 @@
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
                                     <span class="material-symbols-outlined text-[14px]">check</span> Selesai
                                 </span>
-                            @elseif($item->status_pengembangan == 'pending')
+                            @elseif($item->status_pengembangan == 'pending' || $item->status_pengembangan == 'Menunggu Review')
                                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-500/10 text-blue-600 border border-blue-500/20">
                                     <span class="material-symbols-outlined text-[14px]">hourglass_empty</span> Menunggu Review
                                 </span>
@@ -43,7 +65,7 @@
                                     <span class="material-symbols-outlined text-[18px]">visibility</span> Lihat
                                 </a>
 
-                            @elseif(in_array($item->status_pengembangan, ['pending', 'rejected']))
+                            @elseif(in_array($item->status_pengembangan, ['pending', 'rejected', 'Menunggu Review']))
                                 <div class="flex items-center justify-end gap-2">
                                     <a href="{{ asset('storage/sertifikat/' . $item->sertifikat) }}" target="_blank" class="p-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Lihat File">
                                         <span class="material-symbols-outlined text-[18px]">visibility</span>

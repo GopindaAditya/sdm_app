@@ -148,7 +148,7 @@
                 @forelse($riwayatTerbaru as $riwayat)
                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
                         <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">
-                            {{ $riwayat->nama_pengembangan }}
+                            {{ $riwayat->pengembangan->nama_pengembangan }}
                         </td>
                         <td class="px-6 py-4">
                             {{ $riwayat->tanggal_kegiatan ? \Carbon\Carbon::parse($riwayat->tanggal_kegiatan)->translatedFormat('d M Y') : '-' }}

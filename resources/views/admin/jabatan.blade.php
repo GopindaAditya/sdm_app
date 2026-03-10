@@ -6,7 +6,7 @@
 <div class="max-w-7xl mx-auto flex flex-col gap-6">
 
     @if(session('success'))
-        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg">
+        <div class="alert-auto-close bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg shadow-sm transition-opacity duration-500">
             <div class="flex items-center">
                 <span class="material-symbols-outlined text-emerald-500 mr-3">check_circle</span>
                 <p class="text-sm text-emerald-700 font-medium">{{ session('success') }}</p>
@@ -14,15 +14,23 @@
         </div>
     @endif
 
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <div>
             <h2 class="text-xl font-bold text-slate-800 dark:text-white">Daftar Jabatan</h2>
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Kelola data jabatan dan petakan standar kompetensi untuk masing-masing peran.</p>
         </div>
-        <button type="button" onclick="openModal()" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition shadow-sm">
-            <span class="material-symbols-outlined text-lg">add</span>
-            Tambah Jabatan
-        </button>
+        
+        <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <div class="relative w-full sm:w-64">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+                <input type="text" id="searchData" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white transition-all shadow-sm" placeholder="Cari nama jabatan..."/>
+            </div>
+
+            <button type="button" onclick="openModal()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition shadow-sm shrink-0">
+                <span class="material-symbols-outlined text-lg">add</span>
+                Tambah Jabatan
+            </button>
+        </div>
     </div>
 
     <div id="table-container" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden transition-opacity duration-300">
@@ -35,21 +43,18 @@
         <form id="formJabatan" onsubmit="saveData(event)">
             @csrf
             <input type="hidden" name="id" id="jabatan_id">
-
             <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                 <h3 id="modalTitle" class="text-lg font-bold text-slate-900 dark:text-white">Tambah Jabatan</h3>
                 <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                     <span class="material-symbols-outlined">close</span>
                 </button>
             </div>
-            
             <div class="p-6 space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Jabatan <span class="text-red-500">*</span></label>
                     <input type="text" name="nama_jabatan" id="nama_jabatan" required class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary text-slate-900 dark:text-white transition-all"/>
                 </div>
             </div>
-            
             <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
                 <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-xl transition-colors">Batal</button>
                 <button type="submit" id="btnSubmit" class="px-4 py-2 text-sm font-medium bg-primary text-white rounded-xl hover:bg-blue-600 transition-colors shadow-sm flex items-center gap-2">
@@ -66,13 +71,16 @@
 <script>
     const modal = $('#jabatanModal');
     const form = $('#formJabatan');
-
-    // --- FUNGSI REFRESH TABEL AJAX ---
+    let currentSearch = '';
+    let currentPerPage = 10; 
+    let typingTimer;
+    
     function fetchTableData(pageUrl = '{{ route("jabatan") }}') {
         $('#table-container').css('opacity', '0.5');
         $.ajax({
             url: pageUrl,
-            type: 'GET',
+            type: 'GET',            
+            data: { search: currentSearch, per_page: currentPerPage }, 
             success: function(response) {
                 $('#table-container').html(response);
                 $('#table-container').css('opacity', '1');
@@ -83,14 +91,33 @@
             }
         });
     }
-
-    // Pagination Click (AJAX)
+        
+    $('#searchData').on('keyup', function() {
+        clearTimeout(typingTimer);
+        currentSearch = $(this).val();
+        typingTimer = setTimeout(function() {
+            fetchTableData('{{ route("jabatan") }}'); 
+        }, 500);
+    });
+    
+    $(document).on('change', '#perPage', function() {
+        currentPerPage = $(this).val();
+        fetchTableData('{{ route("jabatan") }}'); 
+    });
+    
+    
+    document.addEventListener("DOMContentLoaded", function() {
+        setTimeout(function() {
+            $('.alert-auto-close').addClass('opacity-0');
+            setTimeout(() => $('.alert-auto-close').hide(), 500);
+        }, 3000);
+    });
+    
     $(document).on('click', '.pagination-wrapper a', function(e) {
         e.preventDefault(); 
         fetchTableData($(this).attr('href'));
     });
 
-    // --- FUNGSI MODAL ---
     function openModal(id = null, nama = '') {
         $('#jabatan_id').val(id);
         $('#nama_jabatan').val(nama);
@@ -123,7 +150,7 @@
                     Swal.fire({
                         icon: 'success', title: 'Berhasil!', text: response.message, showConfirmButton: false, timer: 1500
                     });
-                    fetchTableData(); // REFRESH TABEL SECARA AJAX
+                    fetchTableData(); 
                 }
             },
             error: function(xhr) {
@@ -160,7 +187,7 @@
                             Swal.fire({
                                 icon: 'success', title: 'Terhapus!', text: response.message, showConfirmButton: false, timer: 1500
                             });
-                            fetchTableData(); // REFRESH TABEL SECARA AJAX
+                            fetchTableData();
                         }
                     }
                 });

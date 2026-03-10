@@ -15,30 +15,37 @@ class PegawaiController extends Controller
     | 1. MANAJEMEN PEGAWAI (ADMIN)
     |--------------------------------------------------------------------------
     */
-
     public function indexAdmin(Request $request)
     {
         $search = $request->input('search');
         $jabatan_id = $request->input('jabatan_id', 'semua');
+        $perPage = $request->input('per_page', 10); 
 
-        $pegawai = Pegawai::with('jabatan')
-            ->when($search, function($q) use ($search) {
-                $q->where('nama', 'like', "%{$search}%")
-                  ->orWhere('nip', 'like', "%{$search}%");
+        $query = Pegawai::with('jabatan')
+            ->when($search, function($q) use ($search) {                
+                $q->where(function($subQ) use ($search) {
+                    $subQ->where('nama', 'like', "%{$search}%")
+                         ->orWhere('nip', 'like', "%{$search}%");
+                });
             })
             ->when($jabatan_id !== 'semua', function($q) use ($jabatan_id) {
                 $q->where('id_jabatan', $jabatan_id);
             })
-            ->orderBy('nama')
-            ->paginate(10);
+            ->orderBy('nama');
+        
+        if ($perPage === 'semua') {
+            $totalData = $query->count();
+            $perPage = $totalData > 0 ? $totalData : 1; 
+        }
 
+        $pegawai = $query->paginate($perPage)->withQueryString();
         $jabatanList = Jabatan::orderBy('nama_jabatan')->get();
 
         if ($request->ajax()) {
-            return view('admin._table_pegawai', compact('pegawai'))->render();
+            return view('admin._table_pegawai', compact('pegawai', 'perPage'))->render();
         }
 
-        return view('admin.pegawai', compact('pegawai', 'jabatanList'));
+        return view('admin.pegawai', compact('pegawai', 'jabatanList', 'perPage'));
     }
 
     public function storeAdmin(Request $request)
@@ -88,11 +95,11 @@ class PegawaiController extends Controller
             ->get();
         
         $idPeriodeAktif = DB::table('periode')->latest('id')->value('id') ?? 1;
-
-        $kompetensiTerpenuhiIds = DB::table('kompetensi_pegawai')
+        
+        $kompetensiTerpenuhi = DB::table('kompetensi_pegawai')
             ->where('nip', $nip)
             ->where('id_periode', $idPeriodeAktif)
-            ->pluck('id_kompetensi')
+            ->pluck('verifikasi', 'id_kompetensi') 
             ->toArray();
         
         $standarKompetensi = [];
@@ -103,9 +110,9 @@ class PegawaiController extends Controller
         }
 
         $kompBisaDiklat = DB::table('pengembangan_kompetensi')->pluck('id_kompetensi')->toArray();
-
+        
         return view('admin.pegawai_detail', compact(
-            'pegawai', 'riwayat', 'standarKompetensi', 'kompetensiTerpenuhiIds', 'kompBisaDiklat'
+            'pegawai', 'riwayat', 'standarKompetensi', 'kompetensiTerpenuhi', 'kompBisaDiklat'
         ));
     }
 
@@ -116,7 +123,7 @@ class PegawaiController extends Controller
 
         DB::beginTransaction();
         try {
-            $riwayat = RiwayatPengembangan::findOrFail($id);
+            $riwayat = \App\Models\RiwayatPengembangan::findOrFail($id);
             $riwayat->update(['status' => $status]);
 
             $kompetensiBaru = [];
@@ -136,6 +143,7 @@ class PegawaiController extends Controller
                             'nip' => $riwayat->nip,
                             'id_kompetensi' => $idKomp,
                             'id_periode' => $idPeriodeAktif,
+                            'verifikasi' => 'Sertifikat', // REVISI 3: Insert sumber verifikasi
                             'created_at' => now(), 'updated_at' => now()
                         ]);
                         $kompetensiBaru[] = $idKomp;
@@ -162,12 +170,14 @@ class PegawaiController extends Controller
 
         DB::table('kompetensi_pegawai')->updateOrInsert(
             ['nip' => $nip, 'id_kompetensi' => $request->id_kompetensi, 'id_periode' => $idPeriodeAktif],
-            ['updated_at' => now(), 'created_at' => now()]
+            [
+                'verifikasi' => 'Admin', // REVISI 4: Update/Insert sumber verifikasi
+                'updated_at' => now(), 'created_at' => now()
+            ]
         );
 
         return response()->json(['success' => true, 'message' => 'Kompetensi berhasil ditandai terpenuhi!']);
     }
-
     /*
     |--------------------------------------------------------------------------
     | 3. DASHBOARD (ADMIN & PEGAWAI)

@@ -69,13 +69,13 @@
         
         <div class="flex gap-2 flex-wrap">
             <button type="button" class="btn-filter active px-4 py-2 bg-primary text-white border border-primary rounded-full text-sm font-medium hover:bg-primary/90 transition-colors" data-filter="semua">Semua</button>
-            <button type="button" class="btn-filter px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" data-filter="terpenuhi">Terpenuhi</button>
+            <button type="button" class="btn-filter px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" data-filter="selesai">Terpenuhi</button>
             <button type="button" class="btn-filter px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" data-filter="belum">Belum terpenuhi</button>            
         </div>
     </div>
 
     <div id="table-container">
-        @include('pegawai._table_kompetensi', ['data' => $kompetensi])
+        @include('pegawai._table_kompetensi')
     </div>
     
 </div>
@@ -86,9 +86,10 @@
     $(document).ready(function() {
         let currentSearch = '';
         let currentFilter = 'semua';
+        let currentPerPage = 10; 
         let typingTimer;
         
-        function fetchFilteredData(pageUrl = '{{ route("kompetensi.filter") }}') {
+        function fetchFilteredData(pageUrl = window.location.pathname) {
             $('#table-container').css('opacity', '0.5'); 
             
             $.ajax({
@@ -96,29 +97,34 @@
                 type: 'GET',
                 data: {
                     search: currentSearch,
-                    filter: currentFilter
+                    filter: currentFilter,
+                    per_page: currentPerPage 
                 },
                 success: function(response) {
-                    $('#table-container').html(response);
+                    // Coba ekstrak isinya (sama seperti trik di tabel pengembangan)
+                    let extractedContent = $(response).find('#table-container').html();
+                    if (extractedContent) {
+                        $('#table-container').html(extractedContent);
+                    } else {
+                        $('#table-container').html(response);
+                    }
                     $('#table-container').css('opacity', '1');
                 },
                 error: function(xhr) {
-                    console.error("Error AJAX:", xhr.responseText);
                     $('#table-container').css('opacity', '1');
-                    alert('Gagal memuat data tabel. Cek console untuk detail error.');
+                    Swal.fire('Gagal!', 'Tidak dapat memuat ulang tabel.', 'error');
                 }
             });
         }
-
+        
         $('#searchInput').on('keyup', function() {
             clearTimeout(typingTimer);
             currentSearch = $(this).val();
-            
             typingTimer = setTimeout(function() {
-                fetchFilteredData();
+                fetchFilteredData(); 
             }, 500);
         });
-        
+                
         $('.btn-filter').on('click', function() {
             $('.btn-filter').removeClass('bg-primary text-white border-primary active')
                             .addClass('bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300');
@@ -127,9 +133,14 @@
                    .addClass('bg-primary text-white border-primary active');
                         
             currentFilter = $(this).data('filter');
-            fetchFilteredData();
+            fetchFilteredData(); 
         });
-
+        
+        $(document).on('change', '#perPage', function() {
+            currentPerPage = $(this).val();
+            fetchFilteredData(); 
+        });
+        
         $(document).on('click', '.pagination-wrapper a', function(e) {
             e.preventDefault();
             fetchFilteredData($(this).attr('href'));

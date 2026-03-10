@@ -102,8 +102,8 @@
                     <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                         @forelse($recentPending as $rp)
                             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white">{{ $rp->nama_pegawai }}</td>
-                                <td class="px-4 py-3 text-slate-600 dark:text-slate-300 truncate max-w-[200px]" title="{{ $rp->nama_pengembangan }}">{{ $rp->nama_pengembangan }}</td>
+                                <td class="px-4 py-3 font-semibold text-slate-900 dark:text-white">{{ $rp->pegawai->nama }}</td>
+                                <td class="px-4 py-3 text-slate-600 dark:text-slate-300 truncate max-w-[200px]" title="{{ $rp->pengembangan->nama_pengembangan }}">{{ $rp->pengembangan->nama_pengembangan }}</td>
                                 <td class="px-4 py-3 text-center text-slate-500 text-xs">{{ \Carbon\Carbon::parse($rp->created_at)->diffForHumans() }}</td>
                                 <td class="px-4 py-3 text-right">
                                     <a href="{{ route('data_pegawai.detail', $rp->nip) }}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 text-slate-700 hover:bg-primary hover:text-white rounded-lg text-xs font-bold transition-colors">

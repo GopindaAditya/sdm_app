@@ -25,9 +25,7 @@
                         "border-light": "#e2e8f0",
                         "border-dark": "#334155"
                     },
-                    fontFamily: {
-                        "display": ["Inter", "sans-serif"]
-                    },
+                    fontFamily: { "display": ["Inter", "sans-serif"] },
                     borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
                 },
             },
@@ -37,24 +35,34 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
+    <style>
+        /* Smooth transition untuk sidebar */
+        #sidebar { transition: transform 0.3s ease-in-out; }
+    </style>
     @stack('styles')
 </head>
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen">
     
-    <div class="flex h-screen overflow-hidden">
+    <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
+
+    <div class="flex h-screen overflow-hidden relative">
         
-        <aside class="w-64 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark flex flex-col hidden md:flex shrink-0">
-            <div class="h-16 px-6 flex items-center gap-3 border-b border-border-light dark:border-border-dark">
-                <img src="{{ asset('images/logo.jpeg') }}" alt="Logo BPS" class="h-8 w-auto">
-                
-                <div class="flex flex-col">
-                    <h1 class="text-base font-bold leading-tight text-primary">HR Admin</h1>
-                    <p class="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider">BPS Management</p>
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark flex flex-col z-50 transform -translate-x-full md:translate-x-0 md:relative md:flex shrink-0 shadow-xl md:shadow-none">
+            
+            <div class="h-16 px-6 flex items-center justify-between border-b border-border-light dark:border-border-dark">
+                <div class="flex items-center gap-3">
+                    <img src="{{ asset('images/logo.jpeg') }}" alt="Logo BPS" class="h-8 w-auto">
+                    <div class="flex flex-col">
+                        <h1 class="text-base font-bold leading-tight text-primary">HR Admin</h1>
+                        <p class="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider">BPS Management</p>
+                    </div>
                 </div>
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-slate-600">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
             </div>
 
             <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-                
                 <div class="pt-2 pb-1">
                     <p class="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Menu Utama</p>
                 </div>
@@ -120,32 +128,49 @@
         </aside>
 
         <main class="flex-1 flex flex-col h-screen overflow-hidden">
-{{--             
-            <header class="h-16 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark px-6 flex items-center justify-between shrink-0">
+            
+            <header class="h-16 bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark px-4 md:px-6 flex items-center justify-between shrink-0">
                 <div class="flex items-center gap-4">
-                    <button class="md:hidden text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">
+                    <button onclick="toggleSidebar()" class="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         <span class="material-symbols-outlined">menu</span>
                     </button>
-                    <h2 class="text-xl font-bold">@yield('title', 'Dashboard')</h2>
+                    <h2 class="text-lg md:text-xl font-bold truncate">@yield('title', 'Dashboard')</h2>
                 </div>
                 
                 <div class="flex items-center gap-3">
                     <div class="hidden sm:flex flex-col text-right">
                         <span class="text-sm font-bold text-slate-900 dark:text-white">{{ Auth::user()->nama ?? 'Administrator' }}</span>
-                        <span class="text-xs text-primary font-medium">BPS Admin</span>
+                        <span class="text-[11px] text-primary font-bold uppercase tracking-widest">BPS Admin</span>
                     </div>
-                    <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-sm">
-                        <span class="material-symbols-outlined">shield_person</span>
+                    <div class="h-9 w-9 md:h-10 md:w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/20 shadow-sm">
+                        <span class="material-symbols-outlined text-xl md:text-2xl">shield_person</span>
                     </div>
                 </div>
-            </header> --}}
+            </header>
 
-            <div class="flex-1 overflow-y-auto p-6 bg-background-light dark:bg-background-dark">
+            <div class="flex-1 overflow-y-auto p-4 md:p-6 bg-background-light dark:bg-background-dark">
                 @yield('content')
             </div>
             
         </main>
     </div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (sidebar.classList.contains('-translate-x-full')) {                
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden'); 
+            } else {                
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+                document.body.classList.remove('overflow-hidden');
+            }
+        }
+    </script>
 
     @stack('scripts')
 </body>

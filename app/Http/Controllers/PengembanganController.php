@@ -21,19 +21,26 @@ class PengembanganController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        
-        $pengembangan = Pengembangan::when($search, function ($q) use ($search) {
+        $perPage = $request->input('per_page', 10); 
+
+        $query = Pengembangan::when($search, function ($q) use ($search) {
                 $q->where('nama_pengembangan', 'like', "%{$search}%");
             })
             ->withCount('kompetensi')
-            ->orderBy('nama_pengembangan')
-            ->paginate(10);
+            ->orderBy('nama_pengembangan');
 
-        if ($request->ajax()) {
-            return view('admin._table_pengembangan', compact('pengembangan'))->render();
+        if ($perPage === 'semua') {
+            $totalData = $query->count();
+            $perPage = $totalData > 0 ? $totalData : 1; 
         }
 
-        return view('admin.pengembangan', compact('pengembangan'));
+        $pengembangan = $query->paginate($perPage)->withQueryString();
+        
+        if ($request->ajax()) {
+            return view('admin._table_pengembangan', compact('pengembangan', 'perPage'))->render();
+        }
+
+        return view('admin.pengembangan', compact('pengembangan', 'perPage'));
     }
 
     public function store(Request $request)
@@ -155,37 +162,36 @@ class PengembanganController extends Controller
     public function pengembanganPegawai(Request $request)
     {
         $nip = Auth::user()->nip;
-        $semuaData = $this->queryPengembanganPegawai($nip);
-
-        $totalPengembangan = $semuaData->count();
-        $totalSelesai = $semuaData->where('status_pengembangan', 'approved')->count();
-        $totalBelum = $semuaData->whereIn('status_pengembangan', ['Belum Mengikuti', 'rejected'])->count();
         
+        $search = $request->input('search');
+        $filter = $request->input('filter', 'semua');
+        $perPage = $request->input('per_page', 10);
+        
+        $semuaData = $this->queryPengembanganPegawai($nip, $search, $filter);
+                
+        $dataDashboard = $this->queryPengembanganPegawai($nip); 
+        $totalPengembangan = $dataDashboard->count();
+        $totalSelesai = $dataDashboard->where('status_pengembangan', 'approved')->count();
+        $totalBelum = $dataDashboard->whereIn('status_pengembangan', ['Belum Mengikuti', 'rejected'])->count();
+        
+        $totalDataFilter = $semuaData->count();
+        $perPageAngka = ($perPage === 'semua') ? ($totalDataFilter > 0 ? $totalDataFilter : 1) : (int)$perPage;
+        $currentPage = $request->input('page', 1);
+
         $pengembangan = new LengthAwarePaginator(
-            $semuaData->forPage($request->page ?? 1, 10),
-            $totalPengembangan,
-            10,
-            $request->page ?? 1,
-            ['path' => route('pengembangan')]
+            $semuaData->forPage($currentPage, $perPageAngka),
+            $totalDataFilter,
+            $perPageAngka,
+            $currentPage,
+            ['path' => url()->current()] 
         );
+        $pengembangan->withQueryString();
 
-        return view('pegawai.pengembangan', compact('pengembangan', 'totalPengembangan', 'totalSelesai', 'totalBelum'));
-    }
-
-    public function filterDataPengembangan(Request $request)
-    {
-        $nip = Auth::user()->nip;
-        $semuaData = $this->queryPengembanganPegawai($nip, $request->search, $request->filter);
-
-        $pengembangan = new LengthAwarePaginator(
-            $semuaData->forPage($request->page ?? 1, 10),
-            $semuaData->count(),
-            10,
-            $request->page ?? 1,
-            ['path' => route('pengembangan.filter')]
-        );
-
-        return view('pegawai._table_pengembangan', compact('pengembangan'))->render();
+        if ($request->ajax()) {
+            return view('pegawai._table_pengembangan', compact('pengembangan', 'perPage'))->render();
+        }
+        
+        return view('pegawai.pengembangan', compact('pengembangan', 'perPage', 'totalPengembangan', 'totalSelesai', 'totalBelum'));
     }
 
     public function uploadSertifikat(Request $request)

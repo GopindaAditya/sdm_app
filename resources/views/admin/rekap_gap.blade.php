@@ -33,14 +33,15 @@
 @push('scripts')
 <script>
     let currentSearch = '';
+    let currentPerPage = 10;
     let typingTimer;
 
     function fetchTableData(pageUrl = '{{ route("rekap_gap") }}') {
         $('#table-container').css('opacity', '0.5').css('pointer-events', 'none');
         $.ajax({
             url: pageUrl,
-            type: 'GET',
-            data: { search: currentSearch },
+            type: 'GET',            
+            data: { search: currentSearch, per_page: currentPerPage },
             success: function(response) {
                 $('#table-container').html(response);
                 $('#table-container').css('opacity', '1').css('pointer-events', 'auto');
@@ -51,8 +52,7 @@
             }
         });
     }
-
-    // FUNGSI CETAK: Memanggil Route Export dengan Filter Search yang aktif
+    
     function cetakLaporan() {
         let url = `{{ route('export_rekap_gap') }}?search=${currentSearch}`;
         window.location.href = url;
@@ -62,13 +62,20 @@
         });
         Toast.fire({ icon: 'success', title: 'Menyiapkan file Excel...' });
     }
-
+    
     $('#searchData').on('keyup', function() {
         clearTimeout(typingTimer);
         currentSearch = $(this).val();
-        typingTimer = setTimeout(fetchTableData, 500);
+        typingTimer = setTimeout(function() {
+            fetchTableData('{{ route("rekap_gap") }}'); 
+        }, 500);
     });
 
+    $(document).on('change', '#perPage', function() {
+        currentPerPage = $(this).val();
+        fetchTableData('{{ route("rekap_gap") }}'); 
+    });
+    
     $(document).on('click', '.pagination-wrapper a', function(e) {
         e.preventDefault(); 
         fetchTableData($(this).attr('href'));

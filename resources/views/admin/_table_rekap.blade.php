@@ -1,3 +1,24 @@
+@if($pegawai->total() > 10)
+<div class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-between items-center">
+    <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 font-medium">
+        <span>Tampilkan</span>
+        <select id="perPage" class="py-1 px-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white transition-all cursor-pointer">
+            <option value="10" {{ $perPage == 10 ? 'selected' : '' }}>10</option>
+            <option value="15" {{ $perPage == 15 ? 'selected' : '' }}>15</option>
+            <option value="25" {{ $perPage == 25 ? 'selected' : '' }}>25</option>
+            <option value="50" {{ $perPage == 50 ? 'selected' : '' }}>50</option>
+            <option value="100" {{ $perPage == 100 ? 'selected' : '' }}>100</option>
+            <option value="semua" {{ $perPage === 'semua' || $perPage == $pegawai->total() ? 'selected' : '' }}>Semua</option>
+        </select>
+        <span>data</span>
+    </div>
+    
+    {{-- <div class="text-sm text-slate-500 dark:text-slate-400">
+        Total <span class="font-bold text-slate-700 dark:text-slate-300">{{ $pegawai->total() }}</span> pegawai
+    </div> --}}
+</div>
+@endif
+
 <div class="overflow-x-auto">
     <table class="w-full text-left text-sm">
         <thead class="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400">

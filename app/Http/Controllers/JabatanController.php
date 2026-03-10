@@ -10,24 +10,34 @@ class JabatanController extends Controller
     public function jabatan(Request $request)
     {
         $today = now()->toDateString();
-        
-        $jabatan = Jabatan::withCount(['kompetensi as total_kompetensi' => function ($query) use ($today) {
-            $query->where('jabatan_kompetensi.mulai_berlaku', '<=', $today)
-                  ->where(function ($q) use ($today) {
-                      $q->whereNull('jabatan_kompetensi.akhir_berlaku')
-                        ->orWhere('jabatan_kompetensi.akhir_berlaku', '>=', $today);
-                  });
-        }])
-        ->orderBy('nama_jabatan')
-        ->paginate(10);
+        $search = $request->input('search'); 
+        $perPage = $request->input('per_page', 10); 
 
-        if ($request->ajax()) {
-            return view('admin._table_jabatan', compact('jabatan'))->render();
+        $query = Jabatan::withCount(['kompetensi as total_kompetensi' => function ($query) use ($today) {
+                $query->where('jabatan_kompetensi.mulai_berlaku', '<=', $today)
+                      ->where(function ($q) use ($today) {
+                          $q->whereNull('jabatan_kompetensi.akhir_berlaku')
+                            ->orWhere('jabatan_kompetensi.akhir_berlaku', '>=', $today);
+                      });
+            }])
+            ->when($search, function($q) use ($search) { 
+                $q->where('nama_jabatan', 'like', "%{$search}%");
+            })
+            ->orderBy('nama_jabatan');
+
+        if ($perPage === 'semua') {
+            $totalData = $query->count();
+            $perPage = $totalData > 0 ? $totalData : 1; 
         }
 
-        return view('admin.jabatan', compact('jabatan'));
+        $jabatan = $query->paginate($perPage)->withQueryString();
+                
+        if ($request->ajax()) {
+            return view('admin._table_jabatan', compact('jabatan', 'perPage'))->render();
+        }
+
+        return view('admin.jabatan', compact('jabatan', 'perPage'));
     }
-    
     public function tambahJabatan(Request $request)
     {
         $request->validate([

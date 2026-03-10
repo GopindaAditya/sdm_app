@@ -160,17 +160,19 @@
     $(document).ready(function() {
         let currentSearch = '';
         let currentFilter = 'semua';
+        let currentPerPage = 10; 
         let typingTimer;        
         
-        function fetchFilteredData(pageUrl = '{{ route("pengembangan.filter") }}') {
+        function fetchFilteredData(pageUrl = window.location.pathname) {
             $('#table-container').css('opacity', '0.5'); 
             
             $.ajax({
                 url: pageUrl,
-                type: 'GET',
+                type: 'GET',                
                 data: {
                     search: currentSearch,
-                    filter: currentFilter
+                    filter: currentFilter,
+                    per_page: currentPerPage
                 },
                 success: function(response) {                    
                     let extractedContent = $(response).find('#table-container').html();
@@ -215,21 +217,22 @@
         $('#searchInput').on('keyup', function() {
             clearTimeout(typingTimer);
             currentSearch = $(this).val();
-            
-            typingTimer = setTimeout(function() {
-                fetchFilteredData();
-            }, 500);
+            typingTimer = setTimeout(fetchFilteredData, 500); 
         });
 
         $('.btn-filter').on('click', function() {
             $('.btn-filter').removeClass('bg-primary text-white border-primary active')
                             .addClass('bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300');
-            
             $(this).removeClass('bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300')
                    .addClass('bg-primary text-white border-primary active');
             
             currentFilter = $(this).data('filter');
-            fetchFilteredData();
+            fetchFilteredData(); 
+        });
+        
+        $(document).on('change', '#perPage', function() {
+            currentPerPage = $(this).val();
+            fetchFilteredData(); 
         });
 
         $(document).on('click', '.pagination-wrapper a', function(e) {

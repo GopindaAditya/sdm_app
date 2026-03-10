@@ -6,7 +6,7 @@
 <div class="max-w-7xl mx-auto flex flex-col gap-6">
 
     @if(session('success'))
-        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg">
+        <div class="alert-auto-close bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg shadow-sm transition-opacity duration-500">
             <div class="flex items-center">
                 <span class="material-symbols-outlined text-emerald-500 mr-3">check_circle</span>
                 <p class="text-sm text-emerald-700 font-medium">{{ session('success') }}</p>
@@ -72,25 +72,51 @@
 @push('scripts')
 <script>
     let currentSearch = '';
+    let currentPerPage = 10; 
     let typingTimer;
+    
+    function setupAlertAutoClose() {
+        setTimeout(function() {
+            $('.alert-auto-close').addClass('opacity-0');
+            setTimeout(function() {
+                $('.alert-auto-close').remove();
+            }, 500);
+        }, 3000);
+    }
 
+    $(document).ready(function() {
+        setupAlertAutoClose();
+    });
+    
     function fetchTableData(pageUrl = '{{ route("pengembangan") }}') {
         $('#table-container').css('opacity', '0.5');
         $.ajax({
-            url: pageUrl, type: 'GET', data: { search: currentSearch },
+            url: pageUrl, 
+            type: 'GET', 
+            data: { 
+                search: currentSearch, 
+                per_page: currentPerPage 
+            },
             success: function(response) {
                 $('#table-container').html(response);
                 $('#table-container').css('opacity', '1');
             }
         });
     }
-
+    
     $('#searchData').on('keyup', function() {
         clearTimeout(typingTimer);
         currentSearch = $(this).val();
-        typingTimer = setTimeout(fetchTableData, 500);
+        typingTimer = setTimeout(function() {
+            fetchTableData('{{ route("pengembangan") }}'); 
+        }, 500);
     });
 
+    $(document).on('change', '#perPage', function() {
+        currentPerPage = $(this).val();
+        fetchTableData('{{ route("pengembangan") }}'); 
+    });
+    
     $(document).on('click', '.pagination-wrapper a', function(e) {
         e.preventDefault(); 
         fetchTableData($(this).attr('href'));
@@ -112,6 +138,7 @@
     function saveData(e) {
         e.preventDefault();
         let $btn = $('#btnSubmit'), $spinner = $('#spinner');
+        
         $btn.prop('disabled', true).addClass('opacity-70');
         $spinner.removeClass('hidden').addClass('animate-spin');
 
@@ -126,6 +153,10 @@
                     fetchTableData(); 
                 }
             },
+            error: function(xhr) {
+                let errorMsg = xhr.responseJSON ? xhr.responseJSON.message : 'Terjadi kesalahan sistem.';
+                Swal.fire('Gagal!', errorMsg, 'error');
+            },
             complete: function() {
                 $btn.prop('disabled', false).removeClass('opacity-70');
                 $spinner.addClass('hidden').removeClass('animate-spin');
@@ -138,11 +169,18 @@
             title: 'Hapus Program?',
             text: "Data akan dihapus beserta pemetaannya!",
             icon: 'warning',
-            showCancelButton: true, confirmButtonColor: '#e73908', confirmButtonText: 'Ya, Hapus!', reverseButtons: true
+            showCancelButton: true, 
+            confirmButtonColor: '#e73908', 
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Ya, Hapus!', 
+            cancelButtonText: 'Batal',
+            reverseButtons: true
         }).then((result) => {
             if (result.isConfirmed) {
                 $.ajax({
-                    url: `/pengembangan/${id}/hapus`, type: 'DELETE', data: { _token: '{{ csrf_token() }}' },
+                    url: `/pengembangan/${id}/hapus`, 
+                    type: 'DELETE', 
+                    data: { _token: '{{ csrf_token() }}' },
                     success: function(response) {
                         Swal.fire({ icon: 'success', title: 'Terhapus!', text: response.message, showConfirmButton: false, timer: 1500 });
                         fetchTableData();
