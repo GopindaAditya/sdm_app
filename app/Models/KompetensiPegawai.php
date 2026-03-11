@@ -10,7 +10,6 @@ class KompetensiPegawai extends Model
 
     protected $fillable = [
         'nip', 
-        'id_kompetensi', 
-        'id_periode'
+        'id_kompetensi',         
     ];
 }

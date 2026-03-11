@@ -15,8 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('nip');
             $table->foreign('nip')->references('nip')->on('pegawai')->onDelete('cascade');
-            $table->foreignId('id_kompetensi')->constrained('kompetensi')->onDelete('cascade');
-            $table->foreignId('id_periode')->constrained('periode')->onDelete('cascade');            
+            $table->foreignId('id_kompetensi')->constrained('kompetensi')->onDelete('cascade');            
+            $table->string('tanggal_kegiatan')->nullable();
+            $table->string('verifikasi')->nullable();
             $table->timestamps();
         });
     }

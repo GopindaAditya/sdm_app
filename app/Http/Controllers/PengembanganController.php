@@ -223,8 +223,7 @@ class PengembanganController extends Controller
 
         RiwayatPengembangan::updateOrCreate(
             ['nip' => $nip, 'id_pengembangan' => $request->id_pengembangan],
-            [
-                'id_periode' => 1, 
+            [                
                 'tanggal_kegiatan' => $request->tanggal_kegiatan,
                 'sertifikat' => $filename,
                 'status' => 'pending'

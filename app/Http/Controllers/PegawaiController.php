@@ -93,12 +93,10 @@ class PegawaiController extends Controller
             ->orderByRaw("FIELD(status, 'pending', 'approved', 'rejected')")
             ->orderByDesc('tanggal_kegiatan')
             ->get();
-        
-        $idPeriodeAktif = DB::table('periode')->latest('id')->value('id') ?? 1;
+                
         
         $kompetensiTerpenuhi = DB::table('kompetensi_pegawai')
-            ->where('nip', $nip)
-            ->where('id_periode', $idPeriodeAktif)
+            ->where('nip', $nip)            
             ->pluck('verifikasi', 'id_kompetensi') 
             ->toArray();
         
@@ -118,12 +116,11 @@ class PegawaiController extends Controller
 
     public function updateStatusSertifikatAdmin(Request $request, $id)
     {
-        $status = $request->input('status');
-        $idPeriodeAktif = DB::table('periode')->latest('id')->value('id') ?? 1;
+        $status = $request->input('status');        
 
         DB::beginTransaction();
         try {
-            $riwayat = \App\Models\RiwayatPengembangan::findOrFail($id);
+            $riwayat = RiwayatPengembangan::findOrFail($id);
             $riwayat->update(['status' => $status]);
 
             $kompetensiBaru = [];
@@ -135,15 +132,15 @@ class PegawaiController extends Controller
 
                 foreach ($outputKompetensi as $idKomp) {                    
                     $exists = DB::table('kompetensi_pegawai')
-                        ->where(['nip' => $riwayat->nip, 'id_kompetensi' => $idKomp, 'id_periode' => $idPeriodeAktif])
+                        ->where(['nip' => $riwayat->nip, 'id_kompetensi' => $idKomp])
                         ->exists();
 
                     if (!$exists) {
                         DB::table('kompetensi_pegawai')->insert([
                             'nip' => $riwayat->nip,
-                            'id_kompetensi' => $idKomp,
-                            'id_periode' => $idPeriodeAktif,
-                            'verifikasi' => 'Sertifikat', // REVISI 3: Insert sumber verifikasi
+                            'id_kompetensi' => $idKomp,                            
+                            'verifikasi' => 'Sertifikat',
+                            'tanggal_kegiatan' => $riwayat->tanggal_kegiatan,
                             'created_at' => now(), 'updated_at' => now()
                         ]);
                         $kompetensiBaru[] = $idKomp;
@@ -164,15 +161,19 @@ class PegawaiController extends Controller
     }
 
     public function storeKompetensiManualAdmin(Request $request, $nip)
-    {
-        $request->validate(['id_kompetensi' => 'required|integer']);
-        $idPeriodeAktif = DB::table('periode')->latest('id')->value('id') ?? 1;
+    {        
+        $request->validate([
+            'id_kompetensi' => 'required|integer',
+            'tanggal_kegiatan' => 'required|date' 
+        ]);        
 
         DB::table('kompetensi_pegawai')->updateOrInsert(
-            ['nip' => $nip, 'id_kompetensi' => $request->id_kompetensi, 'id_periode' => $idPeriodeAktif],
+            ['nip' => $nip, 'id_kompetensi' => $request->id_kompetensi],
             [
-                'verifikasi' => 'Admin', // REVISI 4: Update/Insert sumber verifikasi
-                'updated_at' => now(), 'created_at' => now()
+                'verifikasi' => 'Admin',                 
+                'tanggal_kegiatan' => $request->tanggal_kegiatan, 
+                'updated_at' => now(), 
+                'created_at' => now()
             ]
         );
 

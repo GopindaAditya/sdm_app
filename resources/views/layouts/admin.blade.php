@@ -53,8 +53,7 @@
                 <div class="flex items-center gap-3">
                     <img src="{{ asset('images/logo.jpeg') }}" alt="Logo BPS" class="h-8 w-auto">
                     <div class="flex flex-col">
-                        <h1 class="text-base font-bold leading-tight text-primary">HR Admin</h1>
-                        <p class="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider">BPS Management</p>
+                        <h1 class="text-base font-bold leading-tight text-primary">Analisi Kebutuhan Diklat</h1>                        
                     </div>
                 </div>
                 <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-slate-600">
@@ -93,7 +92,7 @@
 
                 <a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-colors {{ request()->is('pengembangan*') ? 'bg-primary/10 text-primary' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}" href="{{ route('pengembangan') }}">
                     <span class="material-symbols-outlined">model_training</span>
-                    <span class="text-sm">Pengembangan</span>
+                    <span class="text-sm">Pengembangan Kompetensi</span>
                 </a>
 
                 <div class="pt-5 pb-1">
@@ -107,12 +106,12 @@
                 
                 <a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-colors {{ request()->is('rekap-gap*') ? 'bg-primary/10 text-primary' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}" href="{{ route('rekap_gap') }}">
                     <span class="material-symbols-outlined">monitoring</span>
-                    <span class="text-sm">Rekap GAP</span>
+                    <span class="text-sm">Rekap GAP Kompetensi</span>
                 </a>
                 
                 <a class="flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-colors {{ request()->is('analisis-diklat*') ? 'bg-primary/10 text-primary' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' }}" href="{{ route('analisis_diklat') }}">
                     <span class="material-symbols-outlined">school</span>
-                    <span class="text-sm">Analisis Diklat</span>
+                    <span class="text-sm">Analisis Kebutuhan Diklat</span>
                 </a>
             </nav>
 

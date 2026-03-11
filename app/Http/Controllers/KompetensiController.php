@@ -89,8 +89,7 @@ class KompetensiController extends Controller
     {
         $pegawai = Auth::user();
         $today = now()->toDateString();
-
-        // Ambil standar kompetensi sesuai jabatan pegawai
+        
         $query = DB::table('jabatan_kompetensi as jk')
             ->select(
                 'k.id', 'k.nama_kompetensi', 'k.kategori',
@@ -222,7 +221,7 @@ class KompetensiController extends Controller
             ->join('kompetensi', 'kompetensi_pegawai.id_kompetensi', '=', 'kompetensi.id')
             ->whereIn('kompetensi_pegawai.nip', $pegawai->pluck('nip'))
             ->when($tahun !== 'semua', function($q) use ($tahun) {
-                $q->whereYear('kompetensi_pegawai.created_at', $tahun);
+                $q->whereYear('kompetensi_pegawai.tanggal_kegiatan', $tahun);
             })
             ->select('kompetensi_pegawai.nip', 'kompetensi.nama_kompetensi')
             ->get()->groupBy('nip');

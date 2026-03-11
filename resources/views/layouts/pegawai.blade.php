@@ -53,9 +53,9 @@
     <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out w-64 bg-surface-light dark:bg-surface-dark border-r border-slate-200 dark:border-slate-700 flex flex-col h-screen shrink-0">
         
         <div class="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-700">
-            <a href="{{ route('profil') }}" class="text-xl font-bold text-primary flex items-center gap-3">
+            <a href="{{ route('profil') }}" class="text-l font-bold text-primary flex items-center gap-3">
                 <img src="{{ asset('images/logo.jpeg') }}" alt="Logo Perusahaan" class="h-8 w-auto">
-                SDM 
+                Analisi Kebutuhan Diklat
             </a>
             
             <button id="close-sidebar-btn" class="md:hidden text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
@@ -78,7 +78,7 @@
             </a>
             <a href="{{ route('pengembangan') }}" class="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors {{ request()->routeIs('pengembangan') ? 'bg-primary/10 text-primary font-bold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800' }}">
                 <span class="material-symbols-outlined text-[22px]">trending_up</span>
-                Pengembangan
+                Pengembangan Kompetensi
             </a>
         </nav>
         

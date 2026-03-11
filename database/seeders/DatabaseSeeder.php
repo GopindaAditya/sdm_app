@@ -15,14 +15,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $now = Carbon::now();
-        $tanggalMulaiBerlaku = '2026-01-01';
-                
-        $periode2026Id = DB::table('periode')->insertGetId([
-            'tahun' => '2026',
-            'status' => true,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        $tanggalMulaiBerlaku = '2026-01-01';                        
 
         DB::table('admins')->insert([
             'username' => 'admin',

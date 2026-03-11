@@ -10,8 +10,7 @@ class RiwayatPengembangan extends Model
 
     protected $fillable = [
         'nip',
-        'id_pengembangan',
-        'id_periode',
+        'id_pengembangan',        
         'tanggal_kegiatan',
         'sertifikat',
         'status'
