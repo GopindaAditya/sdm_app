@@ -81,6 +81,7 @@ Route::middleware('auth:admin,pegawai')->group(function () {
 
         // Pegawai Actions        
         Route::post('/upload', [PengembanganController::class, 'uploadSertifikat'])->name('pengembangan.upload');
+        Route::get('/upload/{id}/kompetensi', [PengembanganController::class, 'getKompetensiForUpload'])->name('pengembangan.kompetensi.api');
         Route::delete('/{id_pengembangan}/hapus-sertifikat', [PengembanganController::class, 'hapusSertifikat'])->name('pengembangan.hapus.sertifikat');
     });
 
@@ -107,10 +108,12 @@ Route::middleware('auth:admin,pegawai')->group(function () {
         Route::post('/', [PegawaiController::class, 'storeAdmin'])->name('data_pegawai.tambah');
         Route::delete('/{nip}/hapus', [PegawaiController::class, 'destroyAdmin'])->name('data_pegawai.hapus');
         Route::get('/{nip}/detail', [PegawaiController::class, 'detailAdmin'])->name('data_pegawai.detail');
+        Route::post('/data-pegawai/export-pilihan', [PegawaiController::class, 'exportPegawaiTerpilih'])->name('data_pegawai.export_pilihan');
         
         // Verifikasi & Manual Override
+        Route::get('riwayat-sertifikat/{id}/detail-review', [PegawaiController::class, 'getDetailReviewSertifikat'])->name('admin.sertifikat.review');
         Route::post('/sertifikat/{id}/status', [PegawaiController::class, 'updateStatusSertifikatAdmin'])->name('data_pegawai.sertifikat.status');
-        Route::post('/{nip}/kompetensi-manual', [PegawaiController::class, 'storeKompetensiManualAdmin'])->name('data_pegawai.kompetensi.manual');
+        // Route::post('/{nip}/kompetensi-manual', [PegawaiController::class, 'storeKompetensiManualAdmin'])->name('data_pegawai.kompetensi.manual');
     });
 
     /*

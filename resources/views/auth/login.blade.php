@@ -97,12 +97,12 @@
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between pt-2">
+                <!-- <div class="flex items-center justify-between pt-2">
                     <label class="flex items-center gap-2 cursor-pointer group">
                         <input type="checkbox" name="remember" class="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary">
                         <span class="text-sm text-slate-600 dark:text-slate-400 font-medium group-hover:text-slate-900 transition-colors">Ingat Saya</span>
                     </label>
-                </div>
+                </div> -->
 
                 <button type="submit" class="w-full py-3 px-4 bg-primary text-white rounded-xl text-sm font-bold hover:bg-blue-600 focus:ring-4 focus:ring-primary/30 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-4">
                     Masuk Sekarang

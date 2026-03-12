@@ -7,7 +7,6 @@
 
     <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden">
         <div class="absolute right-0 top-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
-        
         <div class="flex flex-col md:flex-row items-start md:items-center gap-6 relative z-10">
             <div class="h-24 w-24 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-4xl shrink-0 border-4 border-white dark:border-slate-800 shadow-md overflow-hidden">
                 @if(!empty($pegawai->foto_profil))
@@ -25,7 +24,6 @@
                 </div>
                 <p class="text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2">
                     <span class="material-symbols-outlined text-sm">badge</span> NIP. {{ $pegawai->nip }}
-                    <span class="mx-2 text-slate-300">|</span>                    
                 </p>
             </div>
             <a href="{{ route('data_pegawai') }}" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 rounded-xl font-medium transition-colors flex items-center gap-2">
@@ -38,7 +36,7 @@
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <span class="material-symbols-outlined text-amber-500">workspace_premium</span>
-                Riwayat Sertifikat & Verifikasi
+                Verifikasi Sertifikat Masuk
             </h3>
         </div>
         
@@ -46,22 +44,26 @@
             <table class="w-full text-left text-sm">
                 <thead class="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400">
                     <tr>
-                        <th class="px-6 py-4 font-semibold">Program Diklat</th>
+                        <th class="px-6 py-4 font-semibold">Program Diklat / Pengembangan</th>
                         <th class="px-6 py-4 font-semibold text-center">Tgl Kegiatan</th>
-                        <th class="px-6 py-4 font-semibold text-center">Bukti/Sertifikat</th>
+                        <th class="px-6 py-4 font-semibold text-center">Bukti</th>
                         <th class="px-6 py-4 font-semibold text-center">Status</th>
-                        <th class="px-6 py-4 font-semibold text-right w-48">Aksi Verifikasi</th>
+                        <th class="px-6 py-4 font-semibold text-right">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                     @forelse($riwayat as $r)
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors {{ $r->status == 'pending' ? 'bg-amber-50/30 dark:bg-amber-900/10' : '' }}">
-                            <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">{{ $r->pengembangan->nama_pengembangan }}</td>
-                            <td class="px-6 py-4 text-center">{{ \Carbon\Carbon::parse($r->tanggal_kegiatan)->format('d M Y') }}</td>
+                            <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">
+                                {{ $r->pengembangan->nama_pengembangan }}
+                            </td>
+                            <td class="px-6 py-4 text-center text-slate-500">
+                                {{ \Carbon\Carbon::parse($r->tanggal_kegiatan)->format('d M Y') }}
+                            </td>
                             <td class="px-6 py-4 text-center">
                                 @if($r->sertifikat)
-                                    <a href="{{ asset('storage/sertifikat/' . str_replace('sertifikat/', '', $r->sertifikat)) }}" target="_blank" class="inline-flex items-center gap-1 text-primary hover:underline font-medium">
-                                        <span class="material-symbols-outlined text-sm">description</span> Lihat File
+                                    <a href="{{ asset('storage/sertifikat/' . str_replace('sertifikat/', '', $r->sertifikat)) }}" target="_blank" class="inline-flex items-center gap-1 text-primary hover:underline font-bold">
+                                        <span class="material-symbols-outlined text-sm">visibility</span> Lihat File
                                     </a>
                                 @else
                                     <span class="text-slate-400 italic">Tidak ada file</span>
@@ -69,27 +71,26 @@
                             </td>
                             <td class="px-6 py-4 text-center" id="status-sertifikat-{{ $r->id }}">
                                 @if($r->status == 'pending')
-                                    <span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">Menunggu</span>
+                                    <span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-xs font-bold">Menunggu Review</span>
                                 @elseif($r->status == 'approved')
                                     <span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">Disetujui</span>
                                 @else
-                                    <span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold tooltip" >Ditolak</span>
+                                    <span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold">Ditolak</span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 text-right" id="action-sertifikat-{{ $r->id }}">
                                 @if($r->status == 'pending')
-                                    <div class="flex items-center justify-end gap-2">
-                                        <button onclick="verifikasiSertifikat({{ $r->id }}, 'approved')" class="px-3 py-1.5 bg-primary text-white hover:bg-blue-600 rounded-lg text-xs font-bold transition-colors">Setujui</button>
-                                        <button onclick="verifikasiSertifikat({{ $r->id }}, 'rejected')" class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-lg text-xs font-bold transition-colors">Tolak</button>
-                                    </div>
+                                    <button onclick="bukaModalReview({{ $r->id }}, '{{ addslashes($r->pengembangan->nama_pengembangan) }}')" class="px-4 py-2 bg-primary text-white hover:bg-blue-600 rounded-xl text-xs font-bold transition-all shadow-sm">
+                                        Review & Verifikasi
+                                    </button>
                                 @else
-                                    <span class="text-xs text-slate-400 italic">Telah diverifikasi</span>
+                                    <span class="text-xs text-slate-400 italic">Selesai</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-8 text-center text-slate-500">Pegawai belum pernah mengunggah sertifikat.</td>
+                            <td colspan="5" class="px-6 py-12 text-center text-slate-500 italic">Pegawai belum memiliki riwayat sertifikat.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -99,16 +100,13 @@
 
     <div>
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-            <div>
-                <h3 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">radar</span>
-                    Kompetensi Pegawai
-                </h3>                
-            </div>
-            
+            <h3 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">radar</span>
+                Status Kompetensi Jabatan
+            </h3> 
             <div class="relative w-full sm:w-64">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
-                <input type="text" id="searchKompPegawai" class="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white shadow-sm transition-all" placeholder="Cari kompetensi..."/>
+                <input type="text" id="searchKompPegawai" class="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 text-slate-900 dark:text-white" placeholder="Cari kompetensi..."/>
             </div>
         </div>
         
@@ -117,70 +115,39 @@
                 <thead class="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400">
                     <tr>
                         <th class="px-6 py-4 font-semibold w-12 text-center">No</th>
-                        <th class="px-6 py-4 font-semibold">Standar Kompetensi Jabatan</th>
+                        <th class="px-6 py-4 font-semibold">Nama Kompetensi</th>
                         <th class="px-6 py-4 font-semibold">Kategori</th>
-                        <th class="px-6 py-4 font-semibold text-center">Status Pemenuhan</th>
-                        <th class="px-6 py-4 font-semibold text-right">Tindakan Khusus</th>
+                        <th class="px-6 py-4 font-semibold text-center">Status</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
                     @forelse($standarKompetensi as $index => $komp)
-                        @php                            
+                        @php 
                             $terpenuhi = array_key_exists($komp->id, $kompetensiTerpenuhi);
-                            $sumberVerif = $terpenuhi ? $kompetensiTerpenuhi[$komp->id] : null;
                         @endphp
-                        
-                        <tr id="row-komp-{{ $komp->id }}" class="row-kompetensi hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors {{ !$terpenuhi ? 'bg-red-50/30 dark:bg-red-900/10' : '' }}">
+                        <tr id="row-komp-{{ $komp->id }}" class="row-kompetensi hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors {{ !$terpenuhi ? 'bg-red-50/5 dark:bg-red-900/5' : '' }}">
                             <td class="px-6 py-4 text-center text-slate-500 index-number">{{ $index + 1 }}</td>
                             <td class="px-6 py-4">
-                                <span class="nama-komp font-medium {{ !$terpenuhi ? 'text-red-700 dark:text-red-400' : 'text-slate-900 dark:text-white' }}">
+                                <span class="nama-komp font-medium {{ !$terpenuhi ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white' }}">
                                     {{ $komp->nama_kompetensi }}
                                 </span>
-                                
-                                <div class="ket-verifikasi-langsung mt-1">
-                                    @if($terpenuhi)
-                                        @if($sumberVerif == 'Admin')
-                                            <p class="text-[10px] text-primary flex items-center gap-1 mt-1 font-semibold">
-                                                <span class="material-symbols-outlined text-[12px]">how_to_reg</span> Diverifikasi Langsung Admin
-                                            </p>
-                                        @elseif($sumberVerif == 'Sertifikat')
-                                            <p class="text-[10px] text-emerald-600 flex items-center gap-1 mt-1 font-semibold">
-                                                <span class="material-symbols-outlined text-[12px]">verified</span> Via Sertifikat
-                                            </p>
-                                        @endif
-                                    @else
-                                        @if(in_array($komp->id, $kompBisaDiklat))
-                                            <span class="inline-block mt-1 w-max text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-200">Bisa via Diklat</span>
-                                        @endif
-                                    @endif
-                                </div>
                             </td>
                             <td class="px-6 py-4 text-slate-500 text-xs">{{ $komp->kategori }}</td>
                             <td class="px-6 py-4 text-center status-badge">
                                 @if($terpenuhi)
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">
-                                        <span class="material-symbols-outlined text-sm">check_circle</span> Terpenuhi
+                                    <span class="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs">
+                                        <span class="material-symbols-outlined text-sm">verified</span> Terpenuhi
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold">
-                                        <span class="material-symbols-outlined text-sm">cancel</span> Belum Terpenuhi
+                                    <span class="inline-flex items-center gap-1 text-red-500 font-bold text-xs italic">
+                                        <span class="material-symbols-outlined text-sm">pending</span> Belum Ada
                                     </span>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 text-right action-btn">
-                                @if(!$terpenuhi)
-                                    <button onclick="bukaModalManual({{ $komp->id }}, '{{ addslashes($komp->nama_kompetensi) }}')" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 hover:border-primary hover:text-primary rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 ml-auto">
-                                        <span class="material-symbols-outlined text-[14px]">how_to_reg</span>
-                                        Verifikasi Langsung
-                                    </button>
-                                @else
-                                    <span class="text-xs text-slate-400 italic">Selesai</span>
                                 @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-6 py-8 text-center text-slate-500">Jabatan ini belum memiliki standar kompetensi.</td>
+                            <td colspan="4" class="px-6 py-8 text-center text-slate-500">Jabatan belum memiliki standar kompetensi.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -189,168 +156,201 @@
     </div>
 </div>
 
-<div id="modalManual" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 items-center justify-center p-4 hidden flex">
-    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md border border-slate-200 dark:border-slate-800 overflow-hidden transform transition-all">
-        <form id="formManual" onsubmit="simpanManual(event)">
-            @csrf
-            <input type="hidden" name="id_kompetensi" id="id_komp_manual">
-            
-            <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-blue-50 dark:bg-blue-900/20">
-                <h3 class="text-lg font-bold text-blue-800 dark:text-blue-400 flex items-center gap-2">
-                    <span class="material-symbols-outlined">how_to_reg</span> Verifikasi Langsung
-                </h3>
-                <button type="button" onclick="$('#modalManual').addClass('hidden')" class="text-slate-400 hover:text-slate-600 transition-colors">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
+<div id="modalReviewSertifikat" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+        
+        <div class="px-6 py-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Review Sertifikat Pegawai</h3>
+                <p id="review_nama_pengembangan" class="text-xs text-primary font-medium mt-0.5"></p>
             </div>
-            
-            <div class="p-6 space-y-4">
-                <p class="text-sm text-slate-600 dark:text-slate-400">Anda akan memverifikasi pemenuhan kompetensi <strong id="nama_komp_display" class="text-slate-900 dark:text-white"></strong> untuk pegawai ini secara langsung.</p>
-                
-                <div class="space-y-2">
-                    <label for="tanggal_kegiatan_manual" class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Tanggal Pencapaian <span class="text-red-500">*</span></label>
-                    <input type="date" name="tanggal_kegiatan" id="tanggal_kegiatan_manual" required class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary text-slate-900 dark:text-white transition-all shadow-sm outline-none">
+            <button type="button" onclick="tutupModalReview()" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto grow space-y-6">
+            <div>
+                <label class="block text-sm font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">fact_check</span>
+                    Kompetensi yang Akan Diperbarui:
+                </label>
+                <div id="loading-review" class="py-10 text-center hidden">
+                    <span class="material-symbols-outlined animate-spin text-primary">autorenew</span>
+                    <p class="text-xs text-slate-500 mt-2 font-medium">Memuat data...</p>
                 </div>
+                <div id="container-kompetensi-review" class="space-y-2">
+                    </div>
             </div>
-            
-            <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
-                <button type="button" onclick="$('#modalManual').addClass('hidden')" class="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-xl">Batal</button>
-                <button type="submit" id="btnManual" class="px-4 py-2 text-sm font-bold bg-primary text-white rounded-xl hover:bg-blue-600 transition-colors shadow-sm">
-                    Tandai Terpenuhi
+
+            <div class="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-200 dark:border-amber-800">
+                <p class="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
+                    <strong>Catatan Admin:</strong> Anda dapat menambah atau mengurangi daftar kompetensi di atas sesuai dengan isi sertifikat yang diunggah pegawai sebelum melakukan persetujuan.
+                </p>
+            </div>
+        </div>
+        
+        <div class="px-6 py-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex flex-wrap gap-3 justify-between items-center">
+            <button type="button" onclick="prosesVerifikasiFinal('rejected')" class="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all border border-red-200 dark:border-red-900">
+                Tolak Sertifikat
+            </button>
+            <div class="flex gap-2">
+                <button type="button" onclick="tutupModalReview()" class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 rounded-xl transition-all">Batal</button>
+                <button type="button" onclick="prosesVerifikasiFinal('approved')" class="px-6 py-2 text-sm font-bold bg-primary text-white hover:bg-blue-600 rounded-xl transition-all shadow-md shadow-primary/20">
+                    Setujui & Update
                 </button>
             </div>
-        </form>
+        </div>
     </div>
 </div>
 @endsection
 
 @push('scripts')
-<script>        
+<script>
+    let currentRiwayatId = null;
+
+    // --- FITUR SEARCH KOMPETENSI ---
     $('#searchKompPegawai').on('keyup', function() {
         let val = $(this).val().toLowerCase();
         $('.row-kompetensi').each(function() {
             let namaKomp = $(this).find('.nama-komp').text().toLowerCase();
-            if(namaKomp.includes(val)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
+            $(this).toggle(namaKomp.includes(val));
         });
-                        
+        
         let counter = 1;
         $('.row-kompetensi:visible').each(function() {
             $(this).find('.index-number').text(counter++);
         });
     });
-        
-    function verifikasiSertifikat(id, status) {
-        let title = status === 'approved' ? 'Setujui Sertifikat?' : 'Tolak Sertifikat?';
-        let textMsg = status === 'approved' ? 'Sertifikat akan disetujui dan kompetensi otomatis diperbarui.' : 'Sertifikat ini akan ditolak secara permanen.';
-        let color = status === 'approved' ? '#1773cf' : '#ef4444'; 
-        
-        Swal.fire({
-            title: title, text: textMsg, icon: 'question',
-            showCancelButton: true, confirmButtonColor: color,
-            confirmButtonText: status === 'approved' ? 'Ya, Setujui' : 'Ya, Tolak',
-            cancelButtonText: 'Batal', reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                let $rowSertifikat = $(`#status-sertifikat-${id}`).closest('tr');
-                let $actionContainer = $(`#action-sertifikat-${id}`);
-                                
-                $rowSertifikat.css('opacity', '0.5').css('pointer-events', 'none');
-                $actionContainer.find('button').prop('disabled', true);
 
-                $.ajax({
-                    url: `{{ url('/data-pegawai/sertifikat') }}/${id}/status`,
-                    type: 'POST',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    data: { status: status },
-                    success: function(response) {
-                        if(response.success) {
-                            Swal.fire({ icon: 'success', title: 'Berhasil', text: response.message, timer: 1500, showConfirmButton: false });
-                            
-                            $rowSertifikat.css('opacity', '1').css('pointer-events', 'auto');
-                            $rowSertifikat.removeClass('bg-amber-50/30 dark:bg-amber-900/10'); 
-                                                        
-                            if (status === 'approved') {
-                                $(`#status-sertifikat-${id}`).html('<span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">Disetujui</span>');
-                            } else {
-                                $(`#status-sertifikat-${id}`).html('<span class="px-2.5 py-1 bg-red-100 text-red-700 rounded-lg text-xs font-bold">Ditolak</span>');
-                            }
-                            $actionContainer.html('<span class="text-xs text-slate-400 italic">Telah diverifikasi</span>');
-                                                        
-                            if (status === 'approved' && response.kompetensi_baru && response.kompetensi_baru.length > 0) {
-                                response.kompetensi_baru.forEach(function(idKomp) {
-                                    let $rowKomp = $(`#row-komp-${idKomp}`);
-                                    if ($rowKomp.length > 0) {                                        
-                                        $rowKomp.removeClass('bg-red-50/30 dark:bg-red-900/10');
-                                        $rowKomp.find('.nama-komp').removeClass('text-red-700 dark:text-red-400').addClass('text-slate-900 dark:text-white');
-                                                                                
-                                        $rowKomp.find('.ket-verifikasi-langsung').html('<p class="text-[10px] text-emerald-600 flex items-center gap-1 mt-1 font-semibold"><span class="material-symbols-outlined text-[12px]">verified</span> Via Sertifikat</p>');
-                                                                                
-                                        $rowKomp.find('.status-badge').html('<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> Terpenuhi</span>');
-                                        $rowKomp.find('.action-btn').html('<span class="text-xs text-slate-400 italic">Selesai</span>');
-                                    }
-                                });
-                            }
-                        }
-                    },
-                    error: function(xhr) {                        
-                        $rowSertifikat.css('opacity', '1').css('pointer-events', 'auto');
-                        $actionContainer.find('button').prop('disabled', false);
+    // --- LOGIKA MODAL REVIEW (REVISI 4) ---
+    function bukaModalReview(id, namaPengembangan) {
+        currentRiwayatId = id;
+        $('#review_nama_pengembangan').text(namaPengembangan);
+        $('#container-kompetensi-review').empty();
+        $('#loading-review').removeClass('hidden');
+        $('#modalReviewSertifikat').removeClass('hidden').addClass('flex');
+
+        $.ajax({
+            url: `{{ url('data-pegawai/riwayat-sertifikat') }}/${id}/detail-review`,
+            type: 'GET',
+            success: function(response) {
+                $('#loading-review').addClass('hidden');
+                if (response.data.length > 0) {
+                    let html = '';
+                    let selectedIds = response.selected_ids || [];
+                    
+                    // Kelompokkan data berdasarkan kategori
+                    let groupedData = response.data.reduce((acc, obj) => {
+                        let key = obj.kategori || 'Lainnya';
+                        if (!acc[key]) acc[key] = [];
+                        acc[key].push(obj);
+                        return acc;
+                    }, {});
+
+                    for (let kategori in groupedData) {
+                        html += `<div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 mt-4 first:mt-0">${kategori}</div>`;
                         
-                        let errorMsg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Terjadi kesalahan sistem.';
-                        Swal.fire('Error', errorMsg, 'error');
+                        // Urutkan: Yang dicentang pegawai muncul di atas per kategori
+                        groupedData[kategori].sort((a,b) => (selectedIds.includes(a.id) === selectedIds.includes(b.id)) ? 0 : selectedIds.includes(a.id) ? -1 : 1)
+                        .forEach(function(komp) {
+                            let isOwned = komp.is_owned;
+                            let isSelectedByPegawai = selectedIds.includes(komp.id);
+                            
+                            // Centang muncul jika: Dipilih Pegawai OR Sudah Dimiliki
+                            let isChecked = (isSelectedByPegawai || isOwned) ? 'checked' : '';
+                            // Disable jika sudah dimiliki (approved) di riwayat lain
+                            let isDisabled = isOwned ? 'disabled' : '';
+                            
+                            // Logika Label Tunggal (Prioritas)
+                            let labelHtml = '';
+                            if (isOwned) {
+                                labelHtml = `<span class="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
+                                                <span class="material-symbols-outlined text-[12px]">check_circle</span> Sudah Dimiliki (Terkunci)
+                                            </span>`;
+                            } else if (komp.is_default) {
+                                labelHtml = `<span class="text-[10px] text-primary font-bold flex items-center gap-1 mt-1">
+                                                <span class="material-symbols-outlined text-[12px]">verified</span> Rekomendasi Sertifikat
+                                            </span>`;
+                            } else if (isSelectedByPegawai) {
+                                labelHtml = `<span class="text-[10px] text-blue-600 font-bold flex items-center gap-1 mt-1">
+                                                <span class="material-symbols-outlined text-[12px]">person</span> Dipilih Pegawai
+                                            </span>`;
+                            }
+
+                            let bgClass = isOwned ? 'opacity-60 bg-slate-50 border-slate-200' : 'bg-white hover:border-primary/50 cursor-pointer shadow-sm';
+
+                            html += `
+                            <label class="flex items-start gap-3 p-3 border rounded-2xl transition-all group ${bgClass}">
+                                <div class="flex items-center h-5 mt-0.5">
+                                    <input type="checkbox" name="komp_review[]" value="${komp.id}" ${isChecked} ${isDisabled} class="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary">
+                                </div>
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">${komp.nama_kompetensi}</span>
+                                    ${labelHtml}
+                                </div>
+                            </label>`;
+                        });
                     }
-                });
+                    $('#container-kompetensi-review').html(html);
+                } else {
+                    $('#container-kompetensi-review').html('<p class="text-xs text-center text-slate-500 py-4 italic">Tidak ada standar kompetensi jabatan.</p>');
+                }
+            },
+            error: function() {
+                tutupModalReview();
+                Swal.fire('Error', 'Gagal memuat detail sertifikat.', 'error');
             }
         });
     }
-    
-    function bukaModalManual(idKomp, namaKomp) {
-        $('#id_komp_manual').val(idKomp);
-        $('#nama_komp_display').text(namaKomp);
-                
-        let today = new Date().toISOString().split('T')[0];
-        $('#tanggal_kegiatan_manual').val(today);
-        
-        $('#modalManual').removeClass('hidden');
-                
-        setTimeout(() => $('#tanggal_kegiatan_manual').focus(), 100);
+
+    function tutupModalReview() {
+        $('#modalReviewSertifikat').addClass('hidden').removeClass('flex');
+        currentRiwayatId = null;
     }
-    
-    function simpanManual(e) {
-        e.preventDefault();
-        let $btn = $('#btnManual');
-        $btn.prop('disabled', true).text('Menyimpan...');
+
+    // --- PROSES FINAL VERIFIKASI (EDIT KOMPETENSI OLEH ADMIN) ---
+    function prosesVerifikasiFinal(status) {
+        let selectedKomp = [];
         
-        $.ajax({
-            url: `{{ url('/data-pegawai') }}/{{ $pegawai->nip }}/kompetensi-manual`,
-            type: 'POST',
-            data: $('#formManual').serialize(),
-            success: function(response) {
-                if(response.success) {
-                    $('#modalManual').addClass('hidden');
-                    Swal.fire({ icon: 'success', title: 'Terpenuhi!', text: response.message, timer: 1500, showConfirmButton: false });
-                                        
-                    let idKomp = $('#id_komp_manual').val();
-                    let $row = $(`#row-komp-${idKomp}`);
-                                                            
-                    $row.removeClass('bg-red-50/30 dark:bg-red-900/10');                    
-                    $row.find('.nama-komp').removeClass('text-red-700 dark:text-red-400').addClass('text-slate-900 dark:text-white');                    
-                                        
-                    $row.find('.ket-verifikasi-langsung').html('<p class="text-[10px] text-primary flex items-center gap-1 mt-1 font-semibold"><span class="material-symbols-outlined text-[12px]">how_to_reg</span> Diverifikasi Langsung Admin</p>');                    
-                                        
-                    $row.find('.status-badge').html('<span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold"><span class="material-symbols-outlined text-sm">check_circle</span> Terpenuhi</span>');                    
-                    $row.find('.action-btn').html('<span class="text-xs text-slate-400 italic">Selesai</span>');
-                }
-            },
-            error: function(xhr) {
-                Swal.fire('Error', xhr.responseJSON.message || 'Gagal menyimpan', 'error');
-            },
-            complete: function() {
-                $btn.prop('disabled', false).text('Tandai Terpenuhi');
+        // PERBAIKAN: Hanya ambil yang di-check DAN BUKAN yang di-disable
+        $('input[name="komp_review[]"]:checked:not(:disabled)').each(function() {
+            selectedKomp.push($(this).val());
+        });
+
+        if (status === 'approved' && selectedKomp.length === 0) {
+            Swal.fire('Peringatan', 'Minimal pilih satu kompetensi (selain yang sudah dimiliki) jika ingin menyetujui.', 'warning');
+            return;
+        }
+
+        Swal.fire({
+            title: status === 'approved' ? 'Setujui Sertifikat?' : 'Tolak Sertifikat?',
+            text: "Pastikan data sudah sesuai.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: status === 'approved' ? '#1773cf' : '#ef4444',
+            confirmButtonText: 'Ya, Proses!',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: `{{ url('/data-pegawai/sertifikat') }}/${currentRiwayatId}/status`,
+                    type: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    data: { 
+                        status: status,
+                        kompetensi_admin: selectedKomp // Kirim pilihan kompetensi yang sudah diedit Admin
+                    },
+                    success: function(response) {
+                        if(response.success) {
+                            Swal.fire({ icon: 'success', title: 'Berhasil', text: response.message, timer: 1500, showConfirmButton: false });
+                            location.reload(); // Reload untuk melihat perubahan status kompetensi di tabel bawah
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire('Error', 'Gagal memproses verifikasi.', 'error');
+                    }
+                });
             }
         });
     }

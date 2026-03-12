@@ -80,7 +80,6 @@ class PengembanganController extends Controller
             ->groupBy('kategori');
 
         $mappedIds = $pengembangan->kompetensi()
-            ->whereNull('akhir_berlaku')
             ->pluck('kompetensi.id')
             ->toArray();
 
@@ -91,17 +90,8 @@ class PengembanganController extends Controller
     {
         $pengembangan = Pengembangan::findOrFail($id);
         $kompetensiIds = $request->input('kompetensi', []);
-        $today = now()->toDateString();
 
-        $syncData = [];
-        foreach($kompetensiIds as $k_id) {
-            $syncData[$k_id] = [
-                'mulai_berlaku' => $today,
-                'akhir_berlaku' => null
-            ];
-        }
-
-        $pengembangan->kompetensi()->sync($syncData);
+        $pengembangan->kompetensi()->sync($kompetensiIds);
 
         return redirect()->route('pengembangan')->with('success', 'Output kompetensi berhasil diperbarui!');
     }
@@ -114,23 +104,13 @@ class PengembanganController extends Controller
     private function queryPengembanganPegawai($nip, $search = null, $filter = 'semua')
     {
         $pegawai = Auth::user();
-        $today = now()->toDateString();
         
         $idKompetensiWajib = DB::table('jabatan_kompetensi')
             ->where('id_jabatan', $pegawai->id_jabatan)
-            ->where('mulai_berlaku', '<=', $today)
-            ->where(function($q) use ($today) {
-                $q->whereNull('akhir_berlaku')->orWhere('akhir_berlaku', '>=', $today);
-            })
             ->pluck('id_kompetensi');
         
-        $query = Pengembangan::whereHas('kompetensi', function($q) use ($idKompetensiWajib, $today) {
-                $q->whereIn('kompetensi.id', $idKompetensiWajib)
-                  ->where('pengembangan_kompetensi.mulai_berlaku', '<=', $today)
-                  ->where(function($sub) use ($today) {
-                      $sub->whereNull('pengembangan_kompetensi.akhir_berlaku')
-                          ->orWhere('pengembangan_kompetensi.akhir_berlaku', '>=', $today);
-                  });
+        $query = Pengembangan::whereHas('kompetensi', function($q) use ($idKompetensiWajib) {
+                $q->whereIn('kompetensi.id', $idKompetensiWajib);
             })
             ->with(['riwayatPengembangan' => function($q) use ($nip) {
                 $q->where('nip', $nip);
@@ -143,6 +123,7 @@ class PengembanganController extends Controller
             $riwayat = $item->riwayatPengembangan->first();
             $item->status_pengembangan = $riwayat ? $riwayat->status : 'Belum Mengikuti';
             $item->tanggal_kegiatan = $riwayat ? $riwayat->tanggal_kegiatan : null;
+            $item->riwayat_id = $riwayat ? $riwayat->id : null;
             $item->sertifikat = $riwayat ? $riwayat->sertifikat : null;
             $item->updated_at = $riwayat ? $riwayat->updated_at : null;
             return $item;
@@ -194,43 +175,123 @@ class PengembanganController extends Controller
         return view('pegawai.pengembangan', compact('pengembangan', 'perPage', 'totalPengembangan', 'totalSelesai', 'totalBelum'));
     }
 
+    public function getKompetensiForUpload($id_pengembangan)
+    {
+        $pegawai = Auth::user();
+        $riwayatId = request('riwayat_id'); 
+
+        // 1. Ambil ID Kompetensi yang SUDAH DIMILIKI (Approved dari riwayat LAIN)
+        $ownedIds = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->where('rp.nip', $pegawai->nip)
+            ->where('rp.status', 'approved')
+            // JANGAN anggap 'owned' jika itu milik riwayat yang sedang diedit
+            ->when($riwayatId, function($q) use ($riwayatId) {
+                return $q->where('kp.id_riwayat_peng', '!=', $riwayatId);
+            })
+            ->pluck('kp.id_kompetensi')
+            ->toArray();
+
+        // 2. Ambil Rekomendasi Admin (Default mapping)
+        $defaultAdminIds = DB::table('pengembangan_kompetensi')
+            ->where('id_pengembangan', $id_pengembangan)
+            ->pluck('id_kompetensi')
+            ->toArray();
+
+        // 3. LOGIKA KRUSIAL: Ambil apa yang pernah Anda pilih di riwayat ini
+        $pilihanLamaUser = [];
+        if ($riwayatId) {
+            $pilihanLamaUser = DB::table('kompetensi_pegawai')
+                ->where('id_riwayat_peng', $riwayatId)
+                ->pluck('id_kompetensi')
+                ->toArray();
+        }
+
+        // Tentukan mana yang harus tercentang di UI:
+        // Jika sedang EDIT (ada pilihan lama), pakai itu. Jika BARU, pakai default admin.
+        $finalSelectedIds = !empty($pilihanLamaUser) ? $pilihanLamaUser : $defaultAdminIds;
+
+        // 4. Ambil Semua Kompetensi Jabatan
+        $data = DB::table('kompetensi as k')
+            ->join('jabatan_kompetensi as jk', 'k.id', '=', 'jk.id_kompetensi')
+            ->where('jk.id_jabatan', $pegawai->id_jabatan)
+            ->select('k.id', 'k.nama_kompetensi', 'k.kategori')
+            ->orderBy('k.nama_kompetensi', 'asc')
+            ->get()
+            ->map(function($komp) use ($ownedIds, $defaultAdminIds) {
+                $komp->is_owned = in_array($komp->id, $ownedIds);
+                $komp->is_default = in_array($komp->id, $defaultAdminIds);
+                return $komp;
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'selected_ids' => $finalSelectedIds // Ini berisi pilihan lama Anda saat edit
+        ]);
+    }
+
     public function uploadSertifikat(Request $request)
     {
         $request->validate([
             'id_pengembangan' => 'required|exists:pengembangan,id',
             'tanggal_kegiatan' => 'required|date',
             'sertifikat' => 'nullable|mimes:pdf,jpg,jpeg,png|max:2048', 
+            'kompetensi' => 'required|array|min:1', 
         ]);
 
         $nip = Auth::user()->nip;
-        $riwayat = RiwayatPengembangan::where('nip', $nip)
-            ->where('id_pengembangan', $request->id_pengembangan)
-            ->first();
-
-        if (!$riwayat && !$request->hasFile('sertifikat')) {
-            return response()->json(['success' => false, 'message' => 'Sertifikat wajib diunggah untuk data baru.'], 422);
-        }
-
-        $filename = $riwayat ? $riwayat->sertifikat : null;
-
-        if ($request->hasFile('sertifikat')) {
-            if ($filename) Storage::disk('public')->delete('sertifikat/' . $filename);
+        return DB::transaction(function () use ($request, $nip) {
             
-            $file = $request->file('sertifikat');
-            $filename = time() . '_' . $file->getClientOriginalName();
-            $file->storeAs('sertifikat', $filename, 'public');
-        }
+            $riwayat = RiwayatPengembangan::where('nip', $nip)
+                ->where('id_pengembangan', $request->id_pengembangan)
+                ->first();
 
-        RiwayatPengembangan::updateOrCreate(
-            ['nip' => $nip, 'id_pengembangan' => $request->id_pengembangan],
-            [                
-                'tanggal_kegiatan' => $request->tanggal_kegiatan,
-                'sertifikat' => $filename,
-                'status' => 'pending'
-            ]
-        );
+            if (!$riwayat && !$request->hasFile('sertifikat')) {
+                return response()->json(['success' => false, 'message' => 'Sertifikat wajib diunggah untuk data baru.'], 422);
+            }
 
-        return response()->json(['success' => true, 'message' => 'Data berhasil disimpan.']);
+            $filename = $riwayat ? $riwayat->sertifikat : null;
+
+            if ($request->hasFile('sertifikat')) {
+                if ($filename) {
+                    Storage::disk('public')->delete('sertifikat/' . $filename);
+                }
+                
+                $file = $request->file('sertifikat');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $file->storeAs('sertifikat', $filename, 'public');
+            }
+
+            $riwayatBaru = RiwayatPengembangan::updateOrCreate(
+                ['nip' => $nip, 'id_pengembangan' => $request->id_pengembangan],
+                [                
+                    'tanggal_kegiatan' => $request->tanggal_kegiatan,
+                    'sertifikat' => $filename,
+                    'status' => 'pending'
+                ]
+            );
+
+            DB::table('kompetensi_pegawai')->where('id_riwayat_peng', $riwayatBaru->id)->delete();
+
+            $dataKompetensi = [];
+            foreach ($request->kompetensi as $idKomp) {
+                if ($idKomp == 0) continue;
+
+                $dataKompetensi[] = [
+                    'id_riwayat_peng' => $riwayatBaru->id,
+                    'id_kompetensi' => $idKomp,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            if (!empty($dataKompetensi)) {
+                DB::table('kompetensi_pegawai')->insert($dataKompetensi);
+            }
+
+            return response()->json(['success' => true, 'message' => 'Data sertifikat dan kompetensi berhasil dikirim untuk review.']);
+        });
     }
 
     public function hapusSertifikat(Request $request, $id_pengembangan)

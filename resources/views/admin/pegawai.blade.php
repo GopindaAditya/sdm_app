@@ -24,6 +24,11 @@
                 <input type="text" id="searchData" class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary text-slate-900 dark:text-white transition-all shadow-sm" placeholder="Cari NIP atau Nama..."/>
             </div>
 
+            <button type="button" id="btnDownloadSelected" onclick="downloadSelected()" class="hidden w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-xl text-sm font-bold hover:bg-emerald-500 hover:text-white transition shadow-sm shrink-0">
+                <span class="material-symbols-outlined text-lg">download</span>
+                Cetak (<span id="countSelected">0</span>)
+            </button>
+
             <button type="button" onclick="openModal()" class="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-blue-600 transition shadow-sm shrink-0">
                 <span class="material-symbols-outlined text-lg">person_add</span>
                 Tambah Akun
@@ -98,14 +103,22 @@
     let typingTimer;
 
     function fetchTableData(pageUrl = '{{ route("data_pegawai") }}') {
-        $('#table-container').css('opacity', '0.5');
+        $('#table-container').css('opacity', '0.5').css('pointer-events', 'none');
         $.ajax({
             url: pageUrl,
             type: 'GET',            
             data: { search: currentSearch, jabatan_id: currentJabatan, per_page: currentPerPage },
             success: function(response) {
                 $('#table-container').html(response);
-                $('#table-container').css('opacity', '1');
+                $('#table-container').css('opacity', '1').css('pointer-events', 'auto');
+                
+                // Reset Checkbox state saat tabel direfresh
+                $('#selectAll').prop('checked', false);
+                updateDownloadButton();
+            },
+            error: function() {
+                $('#table-container').css('opacity', '1').css('pointer-events', 'auto');
+                Swal.fire('Error', 'Gagal memuat data tabel.', 'error');
             }
         });
     }
@@ -113,19 +126,17 @@
     $('#searchData').on('keyup', function() {
         clearTimeout(typingTimer);
         currentSearch = $(this).val();
-        typingTimer = setTimeout(function() {
-            fetchTableData('{{ route("data_pegawai") }}'); 
-        }, 500);
+        typingTimer = setTimeout(function() { fetchTableData(); }, 500);
     });
     
     $('#filterJabatan').on('change', function() {
         currentJabatan = $(this).val();
-        fetchTableData('{{ route("data_pegawai") }}'); 
+        fetchTableData(); 
     });
     
     $(document).on('change', '#perPage', function() {
         currentPerPage = $(this).val();
-        fetchTableData('{{ route("data_pegawai") }}'); 
+        fetchTableData(); 
     });
     
     $(document).on('click', '.pagination-wrapper a', function(e) {
@@ -133,6 +144,60 @@
         fetchTableData($(this).attr('href'));
     });
 
+    // --- LOGIKA CHECKBOX & DOWNLOAD ---
+    $(document).on('change', '#selectAll', function() {
+        $('.row-checkbox').prop('checked', $(this).prop('checked'));
+        updateDownloadButton();
+    });
+
+    $(document).on('change', '.row-checkbox', function() {
+        if (!$(this).prop('checked')) {
+            $('#selectAll').prop('checked', false);
+        }
+        if ($('.row-checkbox:checked').length === $('.row-checkbox').length) {
+            $('#selectAll').prop('checked', true);
+        }
+        updateDownloadButton();
+    });
+
+    function updateDownloadButton() {
+        let count = $('.row-checkbox:checked').length;
+        $('#countSelected').text(count);
+        if (count > 0) {
+            $('#btnDownloadSelected').removeClass('hidden').addClass('flex');
+        } else {
+            $('#btnDownloadSelected').addClass('hidden').removeClass('flex');
+        }
+    }
+
+    function downloadSelected() {
+        let nips = [];
+        $('.row-checkbox:checked').each(function() {
+            nips.push($(this).val());
+        });
+
+        if(nips.length === 0) return;
+
+        let form = $('<form>', {
+            action: '{{ route("data_pegawai.export_pilihan") }}', // Rute ini harus ditambahkan di web.php
+            method: 'POST'
+        });
+        
+        form.append($('<input>', { type: 'hidden', name: '_token', value: '{{ csrf_token() }}' }));
+        
+        nips.forEach(nip => {
+            form.append($('<input>', { type: 'hidden', name: 'nips[]', value: nip }));
+        });
+        
+        $('body').append(form);
+        form.submit();
+        form.remove();
+
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
+        Toast.fire({ icon: 'success', title: 'Menyiapkan file Excel...' });
+    }
+
+    // --- LOGIKA MODAL CRUD ---
     function openModal(nip = '', nama = '', id_jabatan = '') {
         $('#nip_lama').val(nip);
         $('#nip').val(nip);

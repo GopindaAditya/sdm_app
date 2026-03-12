@@ -15,8 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('id_kompetensi')->nullable()->constrained('kompetensi')->nullOnDelete();            
             $table->foreignId('id_pengembangan')->nullable()->constrained('pengembangan')->nullOnDelete();            
-            $table->date('mulai_berlaku')->nullable();
-            $table->date('akhir_berlaku')->nullable();
             $table->timestamps();
         });
     }

@@ -11,10 +11,6 @@
         </select>
         <span>data</span>
     </div>
-    
-    {{-- <div class="text-sm text-slate-500 dark:text-slate-400">
-        Total <span class="font-bold text-slate-700 dark:text-slate-300">{{ $pegawai->total() }}</span> pegawai
-    </div> --}}
 </div>
 @endif
 
@@ -22,6 +18,9 @@
     <table class="w-full text-left text-sm">
         <thead class="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400">
             <tr>
+                <th class="px-6 py-4 w-12 text-center border-r border-slate-200 dark:border-slate-800">
+                    <input type="checkbox" id="selectAll" class="w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary cursor-pointer tooltip" title="Pilih Semua">
+                </th>
                 <th class="px-6 py-4 font-semibold w-16 text-center">No</th>
                 <th class="px-6 py-4 font-semibold">Profil Pegawai</th>
                 <th class="px-6 py-4 font-semibold">Jabatan</th>
@@ -31,6 +30,9 @@
         <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
             @forelse($pegawai as $index => $item)
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                    <td class="px-6 py-4 text-center border-r border-slate-200 dark:border-slate-800">
+                        <input type="checkbox" value="{{ $item->nip }}" class="row-checkbox w-4 h-4 text-primary border-slate-300 rounded focus:ring-primary cursor-pointer">
+                    </td>
                     <td class="px-6 py-4 text-center text-slate-500">{{ $pegawai->firstItem() + $index }}</td>
                     <td class="px-6 py-4">
                         <div class="flex items-center gap-3">
@@ -74,7 +76,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="4" class="px-6 py-8 text-center text-slate-500">
+                    <td colspan="5" class="px-6 py-8 text-center text-slate-500">
                         <div class="flex flex-col items-center justify-center">
                             <span class="material-symbols-outlined text-5xl mb-2 text-slate-300">group_off</span>
                             <p>Belum ada data pegawai.</p>

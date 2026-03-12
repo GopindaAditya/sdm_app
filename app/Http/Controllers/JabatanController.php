@@ -9,17 +9,10 @@ class JabatanController extends Controller
 {    
     public function jabatan(Request $request)
     {
-        $today = now()->toDateString();
         $search = $request->input('search'); 
         $perPage = $request->input('per_page', 10); 
 
-        $query = Jabatan::withCount(['kompetensi as total_kompetensi' => function ($query) use ($today) {
-                $query->where('jabatan_kompetensi.mulai_berlaku', '<=', $today)
-                      ->where(function ($q) use ($today) {
-                          $q->whereNull('jabatan_kompetensi.akhir_berlaku')
-                            ->orWhere('jabatan_kompetensi.akhir_berlaku', '>=', $today);
-                      });
-            }])
+        $query = Jabatan::withCount('kompetensi as total_kompetensi')
             ->when($search, function($q) use ($search) { 
                 $q->where('nama_jabatan', 'like', "%{$search}%");
             })
@@ -74,7 +67,6 @@ class JabatanController extends Controller
             ->groupBy('kategori');
 
         $mappedIds = $jabatan->kompetensi()
-            ->whereNull('akhir_berlaku')
             ->pluck('kompetensi.id') 
             ->toArray();
 
@@ -85,17 +77,8 @@ class JabatanController extends Controller
     {
         $jabatan = Jabatan::findOrFail($id);
         $kompetensiIds = $request->input('kompetensi', []);
-        $today = now()->toDateString();
         
-        $syncData = [];
-        foreach ($kompetensiIds as $k_id) {
-            $syncData[$k_id] = [
-                'mulai_berlaku' => $today,
-                'akhir_berlaku' => null
-            ];
-        }
-        
-        $jabatan->kompetensi()->sync($syncData);
+        $jabatan->kompetensi()->sync($kompetensiIds);
 
         return redirect()->route('jabatan')->with('success', 'Standar kompetensi berhasil diperbarui!');
     }

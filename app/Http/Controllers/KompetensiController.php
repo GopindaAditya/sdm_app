@@ -88,29 +88,31 @@ class KompetensiController extends Controller
     private function queryKompetensiPegawai($nip, $search = null, $filter = 'semua')
     {
         $pegawai = Auth::user();
-        $today = now()->toDateString();
         
         $query = DB::table('jabatan_kompetensi as jk')
             ->select(
-                'k.id', 'k.nama_kompetensi', 'k.kategori',
+                'k.id', 
+                'k.nama_kompetensi', 
+                'k.kategori',
                 DB::raw("IF(kp.id_kompetensi IS NOT NULL, 'Terpenuhi', 'Belum Terpenuhi') AS status_dimiliki")
             )
             ->join('kompetensi as k', 'jk.id_kompetensi', '=', 'k.id')
             ->leftJoin('kompetensi_pegawai as kp', function($join) use ($nip) {
-                $join->on('k.id', '=', 'kp.id_kompetensi')->where('kp.nip', '=', $nip);
+                $join->on('k.id', '=', 'kp.id_kompetensi')
+                    ->whereIn('kp.id_riwayat_peng', function($q) use ($nip) {
+                        $q->select('id')
+                        ->from('riwayat_pengembangan')
+                        ->where('nip', $nip)
+                        ->where('status', 'approved'); 
+                    });
             })
-            ->where('jk.id_jabatan', $pegawai->id_jabatan)
-            ->where('jk.mulai_berlaku', '<=', $today)
-            ->where(function ($q) use ($today) {
-                $q->whereNull('jk.akhir_berlaku')->orWhere('jk.akhir_berlaku', '>=', $today);
-            });
+            ->where('jk.id_jabatan', $pegawai->id_jabatan);
 
-        if ($search) $query->where('k.nama_kompetensi', 'like', "%{$search}%");
+        if ($search) {
+            $query->where('k.nama_kompetensi', 'like', "%{$search}%");
+        }
 
         $data = $query->distinct()->get();
-
-        if ($filter == 'terpenuhi') $data = $data->where('status_dimiliki', 'Terpenuhi');
-        if ($filter == 'belum') $data = $data->where('status_dimiliki', 'Belum Terpenuhi');
 
         return $data->sortBy('status_dimiliki')->values();
     }
@@ -205,7 +207,7 @@ class KompetensiController extends Controller
             ->when($search, function($q) use ($search) {                
                 $q->where(function($subQ) use ($search) {
                     $subQ->where('nama', 'like', "%{$search}%")
-                         ->orWhere('nip', 'like', "%{$search}%");
+                        ->orWhere('nip', 'like', "%{$search}%");
                 });
             })
             ->orderBy('nama');
@@ -217,24 +219,32 @@ class KompetensiController extends Controller
         
         $pegawai = $query->paginate($perPage)->withQueryString();
 
-        $kompetensiRaw = DB::table('kompetensi_pegawai')
-            ->join('kompetensi', 'kompetensi_pegawai.id_kompetensi', '=', 'kompetensi.id')
-            ->whereIn('kompetensi_pegawai.nip', $pegawai->pluck('nip'))
+        $kompetensiRaw = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->join('kompetensi as k', 'kp.id_kompetensi', '=', 'k.id')
+            ->whereIn('rp.nip', $pegawai->pluck('nip'))
+            ->where('rp.status', 'approved') 
             ->when($tahun !== 'semua', function($q) use ($tahun) {
-                $q->whereYear('kompetensi_pegawai.tanggal_kegiatan', $tahun);
+                $q->whereYear('rp.tanggal_kegiatan', $tahun);
             })
-            ->select('kompetensi_pegawai.nip', 'kompetensi.nama_kompetensi')
-            ->get()->groupBy('nip');
+            ->select('rp.nip', 'k.nama_kompetensi')
+            ->get()
+            ->groupBy('nip');
 
         foreach ($pegawai as $p) {
-            $p->kompetensi_dimiliki = isset($kompetensiRaw[$p->nip]) ? $kompetensiRaw[$p->nip]->pluck('nama_kompetensi')->toArray() : [];
+            $p->kompetensi_dimiliki = isset($kompetensiRaw[$p->nip]) 
+                ? $kompetensiRaw[$p->nip]->pluck('nama_kompetensi')->toArray() 
+                : [];
         }
         
-        if ($request->ajax()) return view('admin._table_rekap', compact('pegawai', 'tahun', 'perPage'))->render();
+        if ($request->ajax()) {
+            return view('admin._table_rekap', compact('pegawai', 'tahun', 'perPage'))->render();
+        }
 
         $listTahun = range(date('Y'), date('Y') - 5);
         return view('admin.rekap', compact('pegawai', 'tahun', 'listTahun', 'perPage'));
     }
+    
     public function rekapGap(Request $request)
     {
         $search = $request->input('search');
@@ -244,7 +254,7 @@ class KompetensiController extends Controller
             ->when($search, function($q) use ($search) {                
                 $q->where(function($subQ) use ($search) {
                     $subQ->where('nama', 'like', "%{$search}%")
-                         ->orWhere('nip', 'like', "%{$search}%");
+                        ->orWhere('nip', 'like', "%{$search}%");
                 });
             })
             ->orderBy('nama');
@@ -257,24 +267,37 @@ class KompetensiController extends Controller
         $pegawai = $query->paginate($perPage)->withQueryString();
         
         $jabatanIds = $pegawai->pluck('id_jabatan')->filter()->unique();
+        $nips = $pegawai->pluck('nip');
 
-        $kompWajib = DB::table('jabatan_kompetensi')
-            ->whereIn('id_jabatan', $jabatanIds)
-            ->whereNull('akhir_berlaku')
-            ->select('id_jabatan', DB::raw('count(id_kompetensi) as total'))
-            ->groupBy('id_jabatan')
-            ->pluck('total', 'id_jabatan');
+        // 1. Ambil DETAIL Kompetensi STANDAR JABATAN
+        $standarKompDetail = DB::table('jabatan_kompetensi as jk')
+            ->join('kompetensi as k', 'jk.id_kompetensi', '=', 'k.id')
+            ->whereIn('jk.id_jabatan', $jabatanIds)
+            ->select('jk.id_jabatan', 'k.id', 'k.nama_kompetensi')
+            ->get()
+            ->groupBy('id_jabatan');
 
-        $kompDimiliki = DB::table('kompetensi_pegawai')
-            ->whereIn('nip', $pegawai->pluck('nip'))
-            ->select('nip', DB::raw('count(distinct id_kompetensi) as total'))
-            ->groupBy('nip')
-            ->pluck('total', 'nip');
+        // 2. Ambil ID Kompetensi yang SUDAH DIMILIKI (Approved)
+        $ownedKompIds = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->whereIn('rp.nip', $nips)
+            ->where('rp.status', 'approved')
+            ->select('rp.nip', 'kp.id_kompetensi')
+            ->get()
+            ->groupBy('nip');
 
         foreach ($pegawai as $p) {
-            $p->kompetensi_total = $kompWajib[$p->id_jabatan] ?? 0;
-            $p->kompetensi_dimiliki = $kompDimiliki[$p->nip] ?? 0;
-            $p->persentase = $p->kompetensi_total > 0 ? min(100, round(($p->kompetensi_dimiliki / $p->kompetensi_total) * 100)) : 0;
+            // Ambil list standar
+            $p->list_standar = $standarKompDetail[$p->id_jabatan] ?? collect();
+            $p->kompetensi_total = $p->list_standar->count();
+
+            // Cari yang BELUM DIMILIKI (GAP)
+            $ownedIds = ($ownedKompIds[$p->nip] ?? collect())->pluck('id_kompetensi')->toArray();
+            
+            $p->list_gap = $p->list_standar->filter(function($item) use ($ownedIds) {
+                return !in_array($item->id, $ownedIds);
+            });
+            $p->kompetensi_gap = $p->list_gap->count();
         }
 
         if ($request->ajax()) {
@@ -293,7 +316,7 @@ class KompetensiController extends Controller
             ->when($search, function($q) use ($search) {                
                 $q->where(function($subQ) use ($search) {
                     $subQ->where('nama', 'like', "%{$search}%")
-                         ->orWhere('nip', 'like', "%{$search}%");
+                        ->orWhere('nip', 'like', "%{$search}%");
                 });
             })
             ->orderBy('nama');
@@ -308,12 +331,17 @@ class KompetensiController extends Controller
         $standarKompetensi = DB::table('jabatan_kompetensi')
             ->join('kompetensi', 'jabatan_kompetensi.id_kompetensi', '=', 'kompetensi.id')
             ->whereIn('jabatan_kompetensi.id_jabatan', $pegawai->pluck('id_jabatan'))
-            ->whereNull('jabatan_kompetensi.akhir_berlaku')
             ->select('jabatan_kompetensi.id_jabatan', 'kompetensi.id', 'kompetensi.nama_kompetensi')
             ->get()->groupBy('id_jabatan');
 
-        $kompDimiliki = DB::table('kompetensi_pegawai')->whereIn('nip', $pegawai->pluck('nip'))
-            ->select('nip', 'id_kompetensi')->get()->groupBy('nip');
+        // FIX: Lakukan join ke riwayat_pengembangan untuk mencari berdasarkan NIP
+        $kompDimiliki = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->whereIn('rp.nip', $pegawai->pluck('nip'))
+            ->where('rp.status', 'approved') // Pastikan hanya data yang sudah valid/disetujui
+            ->select('rp.nip', 'kp.id_kompetensi')
+            ->get()
+            ->groupBy('nip');
 
         foreach ($pegawai as $p) {            
             $standar = $standarKompetensi->get($p->id_jabatan, collect());
@@ -321,6 +349,7 @@ class KompetensiController extends Controller
             $dataDimiliki = $kompDimiliki->get($p->nip);
             $dimilikiIds = $dataDimiliki ? $dataDimiliki->pluck('id_kompetensi')->toArray() : [];
             
+            // Logika GAP: Standar yang tidak ada di dimilikiIds
             $p->kebutuhan_diklat = $standar->whereNotIn('id', $dimilikiIds)->pluck('nama_kompetensi')->toArray();
             $p->jumlah_kebutuhan = count($p->kebutuhan_diklat);
             $p->jumlah_standar = $standar->count();
@@ -350,14 +379,17 @@ class KompetensiController extends Controller
         $pegawai = $query->orderBy('nama')->get();
         $nips = $pegawai->pluck('nip')->toArray();
         
-        $kompetensiQuery = DB::table('kompetensi_pegawai')
-            ->join('kompetensi', 'kompetensi_pegawai.id_kompetensi', '=', 'kompetensi.id')
-            ->whereIn('kompetensi_pegawai.nip', $nips)
-            ->select('kompetensi_pegawai.nip', 'kompetensi.nama_kompetensi')
+        // FIX: Join ke riwayat_pengembangan
+        $kompetensiQuery = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->join('kompetensi as k', 'kp.id_kompetensi', '=', 'k.id')
+            ->whereIn('rp.nip', $nips)
+            ->where('rp.status', 'approved')
+            ->select('rp.nip', 'k.nama_kompetensi')
             ->distinct();
 
         if ($tahun !== 'semua') {
-            $kompetensiQuery->whereYear('kompetensi_pegawai.created_at', $tahun);
+            $kompetensiQuery->whereYear('rp.tanggal_kegiatan', $tahun);
         }
         $kompetensiRaw = $kompetensiQuery->get()->groupBy('nip');
         
@@ -420,15 +452,23 @@ class KompetensiController extends Controller
         $nips = $pegawai->pluck('nip')->toArray();
         $jabatanIds = $pegawai->pluck('id_jabatan')->filter()->unique()->toArray();
         
-        $kompWajib = DB::table('jabatan_kompetensi')
-            ->whereIn('id_jabatan', $jabatanIds)->whereNull('akhir_berlaku')
-            ->select('id_jabatan', DB::raw('count(id_kompetensi) as total'))
-            ->groupBy('id_jabatan')->pluck('total', 'id_jabatan')->toArray();
+        // Ambil detail standar kompetensi dari jabatan
+        $standarKompDetail = DB::table('jabatan_kompetensi as jk')
+            ->join('kompetensi as k', 'jk.id_kompetensi', '=', 'k.id')
+            ->whereIn('jk.id_jabatan', $jabatanIds)
+            ->select('jk.id_jabatan', 'k.id', 'k.nama_kompetensi')
+            ->get()
+            ->groupBy('id_jabatan');
 
-        $kompDimiliki = DB::table('kompetensi_pegawai')
-            ->whereIn('nip', $nips)
-            ->select('nip', DB::raw('count(distinct id_kompetensi) as total'))
-            ->groupBy('nip')->pluck('total', 'nip')->toArray();
+        // Ambil detail kompetensi yang SUDAH dimiliki (Status Approved)
+        $ownedKompDetail = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->join('kompetensi as k', 'kp.id_kompetensi', '=', 'k.id')
+            ->whereIn('rp.nip', $nips)
+            ->where('rp.status', 'approved')
+            ->select('rp.nip', 'k.id', 'k.nama_kompetensi')
+            ->get()
+            ->groupBy('nip');
         
         $fileName = "Rekap_GAP_Kompetensi_BPS_Bali_" . date('Y-m-d') . ".xls";
         header("Content-Type: application/vnd.ms-excel");
@@ -437,34 +477,53 @@ class KompetensiController extends Controller
         echo '
         <table border="1">
             <tr>
-                <th colspan="6" style="font-size: 16px; font-weight: bold;">REKAP GAP KOMPETENSI PEGAWAI BPS PROVINSI BALI</th>
+                <th colspan="8" style="font-size: 16px; font-weight: bold; background-color: #d1e7dd;">REKAP GAP KOMPETENSI PEGAWAI BPS PROVINSI BALI</th>
             </tr>
-            <tr style="background-color: #f2f2f2;">
-                <th style="font-weight: bold;">No</th>
-                <th style="font-weight: bold;">NIP</th>
-                <th style="font-weight: bold;">Nama Pegawai</th>
-                <th style="font-weight: bold;">Jabatan</th>
-                <th style="font-weight: bold;">Standar Total</th>
-                <th style="font-weight: bold;">Sudah Dimiliki</th>
-                <th style="font-weight: bold;">Selisih (GAP)</th>
+            <tr style="background-color: #f8f9fa;">
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">No</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">NIP</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Nama Pegawai</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Jabatan</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Total</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Belum Dimiliki (Angka)</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Belum Dimiliki (Nama Kompetensi)</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Selisih</th>
             </tr>';
 
         $no = 1;
         foreach ($pegawai as $p) {
-            $total = $p->id_jabatan && isset($kompWajib[$p->id_jabatan]) ? $kompWajib[$p->id_jabatan] : 0;
-            $dimiliki = isset($kompDimiliki[$p->nip]) ? $kompDimiliki[$p->nip] : 0;
-            $gap = $total - $dimiliki;
-            $statusGap = $gap > 0 ? $gap : 'Terpenuhi';
+            $listStandar = $standarKompDetail[$p->id_jabatan] ?? collect();
+            $total = $listStandar->count();
+            
+            $listDimiliki = ($ownedKompDetail[$p->nip] ?? collect())->unique('id');
+            $ownedIds = $listDimiliki->pluck('id')->toArray();
+            
+            // Filter Standar yang ID-nya TIDAK ADA di dalam array OwnedIds
+            $listGap = $listStandar->filter(function($item) use ($ownedIds) {
+                return !in_array($item->id, $ownedIds);
+            });
+            
+            $gapCount = $listGap->count();
+            $gapNames = $listGap->pluck('nama_kompetensi')->toArray();
+            
+            // Teks untuk nama kompetensi
+            $gapString = empty($gapNames) ? '-' : implode(', ', $gapNames);
+            
+            // Pewarnaan teks (merah jika ada GAP, hijau jika sudah lengkap)
+            $color = $gapCount > 0 ? '#dc3545' : '#198754'; // Merah / Hijau
+            $selisihTeks = $gapCount > 0 ? $gapCount : '0';
 
+            // mso-number-format:'\@'; digunakan agar NIP (angka panjang) tidak berubah menjadi format scientific di Excel
             echo '
             <tr>
-                <td align="center">' . $no++ . '</td>
-                <td>' . $p->nip . '</td>
-                <td>' . $p->nama . '</td>
-                <td>' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
-                <td align="center">' . $total . '</td>
-                <td align="center">' . $dimiliki . '</td>
-                <td align="center" style="color: ' . ($gap > 0 ? 'red' : 'green') . ';">' . $statusGap . '</td>
+                <td align="center" valign="top">' . $no++ . '</td>
+                <td valign="top" style="mso-number-format:\'\@\';">' . $p->nip . '</td>
+                <td valign="top">' . $p->nama . '</td>
+                <td valign="top">' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
+                <td align="center" valign="top"><b>' . $total . '</b></td>
+                <td align="center" valign="top" style="color: ' . $color . '; font-weight: bold;">' . $gapCount . '</td>
+                <td valign="top" style="color: ' . $color . ';">' . $gapString . '</td>
+                <td align="center" valign="top" style="color: ' . $color . '; font-weight: bold;">' . $selisihTeks . '</td>
             </tr>';
         }
 
@@ -490,13 +549,15 @@ class KompetensiController extends Controller
         $standarRaw = DB::table('jabatan_kompetensi')
             ->join('kompetensi', 'jabatan_kompetensi.id_kompetensi', '=', 'kompetensi.id')
             ->whereIn('jabatan_kompetensi.id_jabatan', $jabatanIds)
-            ->whereNull('jabatan_kompetensi.akhir_berlaku')
             ->select('jabatan_kompetensi.id_jabatan', 'kompetensi.id', 'kompetensi.nama_kompetensi')
             ->get()->groupBy('id_jabatan');
         
-        $dimilikiRaw = DB::table('kompetensi_pegawai')
-            ->whereIn('nip', $nips)
-            ->select('nip', 'id_kompetensi')
+        // FIX: Join ke riwayat_pengembangan
+        $dimilikiRaw = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->whereIn('rp.nip', $nips)
+            ->where('rp.status', 'approved')
+            ->select('rp.nip', 'kp.id_kompetensi')
             ->get()->groupBy('nip');
 
         $fileName = "Rekap_Analisis_Kebutuhan_Diklat_" . date('Y-m-d') . ".xls";
@@ -532,11 +593,11 @@ class KompetensiController extends Controller
 
             echo '
             <tr>
-                <td align="center">' . $no++ . '</td>
-                <td>' . $p->nip . '</td>
-                <td>' . $p->nama . '</td>
-                <td>' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
-                <td style="color: ' . (empty($kebutuhan) ? 'green' : 'red') . ';">' . $kebutuhanString . '</td>
+                <td align="center" valign="top">' . $no++ . '</td>
+                <td valign="top">' . $p->nip . '</td>
+                <td valign="top">' . $p->nama . '</td>
+                <td valign="top">' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
+                <td valign="top" style="color: ' . (empty($kebutuhan) ? 'green' : 'red') . ';">' . $kebutuhanString . '</td>
             </tr>';
         }
 

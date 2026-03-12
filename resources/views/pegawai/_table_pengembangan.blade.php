@@ -76,6 +76,7 @@
                                         data-id="{{ $item->id }}"
                                         data-nama="{{ $item->nama_pengembangan }}"
                                         data-tanggal="{{ $item->tanggal_kegiatan ? \Carbon\Carbon::parse($item->tanggal_kegiatan)->format('Y-m-d') : '' }}"
+                                        data-riwayat-id="{{ $item->riwayat_id }}"  
                                         title="Edit Data">
                                         <span class="material-symbols-outlined text-[18px]">edit</span>
                                     </button>

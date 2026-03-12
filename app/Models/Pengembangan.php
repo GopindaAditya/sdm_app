@@ -13,8 +13,7 @@ class Pengembangan extends Model
     ];
 
     public function kompetensi() {
-        return $this->belongsToMany(Kompetensi::class, 'pengembangan_kompetensi', 'id_pengembangan', 'id_kompetensi')
-                    ->withPivot('mulai_berlaku', 'akhir_berlaku');
+        return $this->belongsToMany(Kompetensi::class, 'pengembangan_kompetensi', 'id_pengembangan', 'id_kompetensi');
     }
     
     public function riwayatPengembangan() {

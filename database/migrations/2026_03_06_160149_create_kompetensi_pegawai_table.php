@@ -13,11 +13,8 @@ return new class extends Migration
     {
         Schema::create('kompetensi_pegawai', function (Blueprint $table) {
             $table->id();
-            $table->string('nip');
-            $table->foreign('nip')->references('nip')->on('pegawai')->onDelete('cascade');
+            $table->foreignId('id_riwayat_peng')->constrained('riwayat_pengembangan')->onDelete('cascade');            
             $table->foreignId('id_kompetensi')->constrained('kompetensi')->onDelete('cascade');            
-            $table->string('tanggal_kegiatan')->nullable();
-            $table->string('verifikasi')->nullable();
             $table->timestamps();
         });
     }

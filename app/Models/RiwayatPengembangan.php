@@ -25,4 +25,5 @@ class RiwayatPengembangan extends Model
     {
         return $this->belongsTo(Pegawai::class, 'nip', 'nip');
     }
+
 }

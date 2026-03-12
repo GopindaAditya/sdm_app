@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('nip');
             $table->foreign('nip')->references('nip')->on('pegawai')->cascadeOnDelete();
-            $table->foreignId('id_pengembangan')->nullable()->constrained('pengembangan')->nullOnDelete();            
+            $table->foreignId('id_pengembangan')->nullable()->constrained('pengembangan')->nullOnDelete();           
             $table->string('tanggal_kegiatan')->nullable();
             $table->string('sertifikat')->nullable();
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');

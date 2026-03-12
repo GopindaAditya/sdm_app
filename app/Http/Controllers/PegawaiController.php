@@ -78,6 +78,84 @@ class PegawaiController extends Controller
         return response()->json(['success' => true, 'message' => 'Akun pegawai berhasil dihapus!']);
     }
 
+    public function exportPegawaiTerpilih(Request $request)
+    {
+        $nips = $request->input('nips', []);
+
+        if (empty($nips)) {
+            return back()->with('error', 'Tidak ada pegawai yang dipilih.');
+        }
+
+        $pegawai = Pegawai::with('jabatan')->whereIn('nip', $nips)->orderBy('nama')->get();
+        $jabatanIds = $pegawai->pluck('id_jabatan')->filter()->unique()->toArray();
+
+        $standarKompDetail = DB::table('jabatan_kompetensi as jk')
+            ->join('kompetensi as k', 'jk.id_kompetensi', '=', 'k.id')
+            ->whereIn('jk.id_jabatan', $jabatanIds)
+            ->select('jk.id_jabatan', 'k.id', 'k.nama_kompetensi')
+            ->get()
+            ->groupBy('id_jabatan');
+
+        $ownedKompDetail = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->join('kompetensi as k', 'kp.id_kompetensi', '=', 'k.id')
+            ->whereIn('rp.nip', $nips)
+            ->where('rp.status', 'approved')
+            ->select('rp.nip', 'k.id', 'k.nama_kompetensi')
+            ->get()
+            ->groupBy('nip');
+
+        $fileName = "Profil_dan_Kompetensi_Pegawai_" . date('Y-m-d') . ".xls";
+        header("Content-Type: application/vnd.ms-excel");
+        header("Content-Disposition: attachment; filename=\"$fileName\"");
+
+        echo '
+        <table border="1">
+            <tr>
+                <th colspan="9" style="font-size: 16px; font-weight: bold; background-color: #cfe2ff;">PROFIL DAN REKAP KOMPETENSI PEGAWAI TERPILIH</th>
+            </tr>
+            <tr style="background-color: #f8f9fa;">
+                <th style="font-weight: bold;">No</th>
+                <th style="font-weight: bold;">NIP</th>
+                <th style="font-weight: bold;">Nama Pegawai</th>
+                <th style="font-weight: bold;">Jabatan</th>
+                <th style="font-weight: bold;">Target Standar</th>
+                <th style="font-weight: bold;">Jml Dimiliki</th>
+                <th style="font-weight: bold;">Daftar Kompetensi Dimiliki</th>
+                <th style="font-weight: bold;">Jml GAP</th>
+                <th style="font-weight: bold;">Kebutuhan Diklat (GAP)</th>
+            </tr>';
+
+        $no = 1;
+        foreach ($pegawai as $p) {
+            $listStandar = $standarKompDetail[$p->id_jabatan] ?? collect();
+            $total = $listStandar->count();
+            
+            $listDimiliki = ($ownedKompDetail[$p->nip] ?? collect())->unique('id');
+            $ownedIds = $listDimiliki->pluck('id')->toArray();
+            $dimilikiString = $listDimiliki->isEmpty() ? '-' : implode(', ', $listDimiliki->pluck('nama_kompetensi')->toArray());
+            
+            $listGap = $listStandar->filter(function($item) use ($ownedIds) { return !in_array($item->id, $ownedIds); });
+            $gapCount = $listGap->count();
+            $gapString = $listGap->isEmpty() ? 'Sudah Terpenuhi' : implode(', ', $listGap->pluck('nama_kompetensi')->toArray());
+
+            echo '
+            <tr>
+                <td align="center" valign="top">' . $no++ . '</td>
+                <td valign="top" style="mso-number-format:\'\@\';">' . $p->nip . '</td>
+                <td valign="top">' . $p->nama . '</td>
+                <td valign="top">' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
+                <td align="center" valign="top">' . $total . '</td>
+                <td align="center" valign="top" style="color: #198754; font-weight: bold;">' . $listDimiliki->count() . '</td>
+                <td valign="top">' . $dimilikiString . '</td>
+                <td align="center" valign="top" style="color: ' . ($gapCount > 0 ? '#dc3545' : '#198754') . '; font-weight: bold;">' . $gapCount . '</td>
+                <td valign="top" style="color: ' . ($gapCount > 0 ? '#dc3545' : '#198754') . ';">' . $gapString . '</td>
+            </tr>';
+        }
+        echo '</table>';
+        exit;
+    }
+
     /*
     |--------------------------------------------------------------------------
     | 2. OPERASI, DETAIL & VERIFIKASI (ADMIN)
@@ -90,95 +168,125 @@ class PegawaiController extends Controller
         
         $riwayat = RiwayatPengembangan::with('pengembangan')
             ->where('nip', $nip)
-            ->orderByRaw("FIELD(status, 'pending', 'approved', 'rejected')")
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 1 WHEN status = 'approved' THEN 2 ELSE 3 END")
             ->orderByDesc('tanggal_kegiatan')
             ->get();
                 
-        
-        $kompetensiTerpenuhi = DB::table('kompetensi_pegawai')
-            ->where('nip', $nip)            
-            ->pluck('verifikasi', 'id_kompetensi') 
+        $kompetensiTerpenuhi = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->where('rp.nip', $nip)
+            ->where('rp.status', 'approved')
+            ->pluck('kp.id_kompetensi', 'kp.id_kompetensi') 
             ->toArray();
         
-        $standarKompetensi = [];
-        if ($pegawai->id_jabatan) {
-            $standarKompetensi = $pegawai->jabatan->kompetensi()
-                ->whereNull('jabatan_kompetensi.akhir_berlaku')
-                ->get();
-        }
+        $standarKompetensi = $pegawai->id_jabatan && $pegawai->jabatan 
+            ? $pegawai->jabatan->kompetensi 
+            : collect();
 
-        $kompBisaDiklat = DB::table('pengembangan_kompetensi')->pluck('id_kompetensi')->toArray();
+        $kompBisaDiklat = DB::table('pengembangan_kompetensi')
+            ->pluck('id_kompetensi')
+            ->toArray();
         
         return view('admin.pegawai_detail', compact(
             'pegawai', 'riwayat', 'standarKompetensi', 'kompetensiTerpenuhi', 'kompBisaDiklat'
         ));
     }
 
+    public function getDetailReviewSertifikat($id)
+    {
+        $riwayat = RiwayatPengembangan::findOrFail($id);
+        $pegawai = Pegawai::where('nip', $riwayat->nip)->first();
+
+        $ownedIds = DB::table('kompetensi_pegawai as kp')
+            ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->where('rp.nip', $riwayat->nip)
+            ->where('rp.status', 'approved')
+            ->where('rp.id', '!=', $id) 
+            ->pluck('kp.id_kompetensi')
+            ->toArray();
+
+        $defaultAdminIds = DB::table('pengembangan_kompetensi')
+            ->where('id_pengembangan', $riwayat->id_pengembangan)
+            ->pluck('id_kompetensi')
+            ->toArray();
+
+        $kompetensiJabatan = DB::table('kompetensi as k')
+            ->join('jabatan_kompetensi as jk', 'k.id', '=', 'jk.id_kompetensi')
+            ->where('jk.id_jabatan', $pegawai->id_jabatan)
+            ->select('k.id', 'k.nama_kompetensi', 'k.kategori')
+            ->get()
+            ->map(function($komp) use ($ownedIds, $defaultAdminIds) {
+                $komp->is_owned = in_array($komp->id, $ownedIds);
+                $komp->is_default = in_array($komp->id, $defaultAdminIds);
+                return $komp;
+            });
+
+        $selectedIds = DB::table('kompetensi_pegawai')
+            ->where('id_riwayat_peng', $id)
+            ->pluck('id_kompetensi')
+            ->toArray();
+
+        return response()->json([
+            'data' => $kompetensiJabatan,
+            'selected_ids' => $selectedIds
+        ]);
+    }
+    
     public function updateStatusSertifikatAdmin(Request $request, $id)
     {
-        $status = $request->input('status');        
+        $status = $request->input('status'); 
+        $kompetensiAdmin = $request->input('kompetensi_admin', []); 
 
         DB::beginTransaction();
         try {
             $riwayat = RiwayatPengembangan::findOrFail($id);
+            
             $riwayat->update(['status' => $status]);
 
-            $kompetensiBaru = [];
+            DB::table('kompetensi_pegawai')->where('id_riwayat_peng', $id)->delete();
 
-            if ($status === 'approved') {                
-                $outputKompetensi = DB::table('pengembangan_kompetensi')
-                    ->where('id_pengembangan', $riwayat->id_pengembangan)
-                    ->pluck('id_kompetensi');
-
-                foreach ($outputKompetensi as $idKomp) {                    
-                    $exists = DB::table('kompetensi_pegawai')
-                        ->where(['nip' => $riwayat->nip, 'id_kompetensi' => $idKomp])
-                        ->exists();
-
-                    if (!$exists) {
-                        DB::table('kompetensi_pegawai')->insert([
-                            'nip' => $riwayat->nip,
-                            'id_kompetensi' => $idKomp,                            
-                            'verifikasi' => 'Sertifikat',
-                            'tanggal_kegiatan' => $riwayat->tanggal_kegiatan,
-                            'created_at' => now(), 'updated_at' => now()
-                        ]);
-                        $kompetensiBaru[] = $idKomp;
-                    }
+            if ($status === 'approved' && !empty($kompetensiAdmin)) {
+                $insertData = [];
+                foreach ($kompetensiAdmin as $idKomp) {
+                    $insertData[] = [
+                        'id_riwayat_peng' => $id,
+                        'id_kompetensi' => $idKomp,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ];
                 }
+                DB::table('kompetensi_pegawai')->insert($insertData);
             }
 
             DB::commit();
             return response()->json([
                 'success' => true,
-                'message' => $status == 'approved' ? 'Disetujui & kompetensi diperbarui!' : 'Sertifikat ditolak.',
-                'kompetensi_baru' => $kompetensiBaru
+                'message' => $status == 'approved' ? 'Sertifikat disetujui dan kompetensi pegawai diperbarui!' : 'Sertifikat telah ditolak.',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
 
-    public function storeKompetensiManualAdmin(Request $request, $nip)
-    {        
-        $request->validate([
-            'id_kompetensi' => 'required|integer',
-            'tanggal_kegiatan' => 'required|date' 
-        ]);        
+    // public function storeKompetensiManualAdmin(Request $request, $nip)
+    // {        
+    //     $request->validate([
+    //         'id_kompetensi' => 'required|integer',
+    //         'tanggal_kegiatan' => 'required|date' 
+    //     ]);        
 
-        DB::table('kompetensi_pegawai')->updateOrInsert(
-            ['nip' => $nip, 'id_kompetensi' => $request->id_kompetensi],
-            [
-                'verifikasi' => 'Admin',                 
-                'tanggal_kegiatan' => $request->tanggal_kegiatan, 
-                'updated_at' => now(), 
-                'created_at' => now()
-            ]
-        );
+    //     DB::table('kompetensi_pegawai')->updateOrInsert(
+    //         ['nip' => $nip, 'id_kompetensi' => $request->id_kompetensi],
+    //         [               
+    //             'tanggal_kegiatan' => $request->tanggal_kegiatan, 
+    //             'updated_at' => now(), 
+    //             'created_at' => now()
+    //         ]
+    //     );
 
-        return response()->json(['success' => true, 'message' => 'Kompetensi berhasil ditandai terpenuhi!']);
-    }
+    //     return response()->json(['success' => true, 'message' => 'Kompetensi berhasil ditandai terpenuhi!']);
+    // }
     /*
     |--------------------------------------------------------------------------
     | 3. DASHBOARD (ADMIN & PEGAWAI)
@@ -223,13 +331,13 @@ class PegawaiController extends Controller
         $sapaan = ($hour < 11) ? 'Pagi' : (($hour < 15) ? 'Siang' : (($hour < 18) ? 'Sore' : 'Malam'));
         
         $kompetensiIds = $pegawai->jabatan ? $pegawai->jabatan->kompetensi()
-            ->whereNull('jabatan_kompetensi.akhir_berlaku')->pluck('kompetensi.id')->toArray() : [];
+            ->pluck('kompetensi.id')->toArray() : [];
         
         $totalKompetensi = count($kompetensiIds);
         
         $pengembanganDibutuhkan = DB::table('pengembangan_kompetensi')
             ->whereIn('id_kompetensi', $kompetensiIds)
-            ->whereNull('akhir_berlaku')->pluck('id_pengembangan')->unique();
+            ->pluck('id_pengembangan')->unique();
 
         $totalTargetPengembangan = $pengembanganDibutuhkan->count();
 

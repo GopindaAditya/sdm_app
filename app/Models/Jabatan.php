@@ -14,7 +14,6 @@ class Jabatan extends Model
     
     public function kompetensi()
     {
-        return $this->belongsToMany(Kompetensi::class, 'jabatan_kompetensi', 'id_jabatan', 'id_kompetensi')
-                    ->withPivot('mulai_berlaku', 'akhir_berlaku');
+        return $this->belongsToMany(Kompetensi::class, 'jabatan_kompetensi', 'id_jabatan', 'id_kompetensi');
     }
 }

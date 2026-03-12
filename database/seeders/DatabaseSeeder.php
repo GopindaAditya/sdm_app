@@ -14,8 +14,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $now = Carbon::now();
-        $tanggalMulaiBerlaku = '2026-01-01';                        
+        $now = Carbon::now();                  
 
         DB::table('admins')->insert([
             'username' => 'admin',
@@ -95,8 +94,6 @@ class DatabaseSeeder extends Seeder
                     DB::table('jabatan_kompetensi')->insert([
                         'id_jabatan' => $jabatanId,
                         'id_kompetensi' => $kompetensiId,
-                        'mulai_berlaku' => $tanggalMulaiBerlaku,
-                        'akhir_berlaku' => null,
                         'created_at' => $now,
                         'updated_at' => $now,
                     ]);
@@ -131,8 +128,6 @@ class DatabaseSeeder extends Seeder
                         DB::table('pengembangan_kompetensi')->insert([
                             'id_pengembangan' => $pengembanganId,
                             'id_kompetensi' => $idKompTeknis,
-                            'mulai_berlaku' => $tanggalMulaiBerlaku,
-                            'akhir_berlaku' => null,
                             'created_at' => $now,
                             'updated_at' => $now,
                         ]);
