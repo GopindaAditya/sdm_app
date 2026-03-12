@@ -112,7 +112,6 @@
                 $('#table-container').html(response);
                 $('#table-container').css('opacity', '1').css('pointer-events', 'auto');
                 
-                // Reset Checkbox state saat tabel direfresh
                 $('#selectAll').prop('checked', false);
                 updateDownloadButton();
             },
@@ -144,7 +143,6 @@
         fetchTableData($(this).attr('href'));
     });
 
-    // --- LOGIKA CHECKBOX & DOWNLOAD ---
     $(document).on('change', '#selectAll', function() {
         $('.row-checkbox').prop('checked', $(this).prop('checked'));
         updateDownloadButton();
@@ -179,7 +177,7 @@
         if(nips.length === 0) return;
 
         let form = $('<form>', {
-            action: '{{ route("data_pegawai.export_pilihan") }}', // Rute ini harus ditambahkan di web.php
+            action: '{{ route("data_pegawai.export_pilihan") }}',
             method: 'POST'
         });
         
@@ -197,7 +195,6 @@
         Toast.fire({ icon: 'success', title: 'Menyiapkan file Excel...' });
     }
 
-    // --- LOGIKA MODAL CRUD ---
     function openModal(nip = '', nama = '', id_jabatan = '') {
         $('#nip_lama').val(nip);
         $('#nip').val(nip);

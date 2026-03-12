@@ -138,7 +138,6 @@
 
 @push('scripts')
 <script>
-    // Menyimpan state checkbox awal untuk mendeteksi perubahan
     let initialState = "";
 
     function getCheckedValues() {
@@ -147,7 +146,6 @@
         }).get().sort().join(',');
     }
 
-    // Fungsi untuk mengecek dan memunculkan footer action
     function checkFooterState() {
         let currentState = getCheckedValues();
         let $footer = $('#actionFooter');
@@ -162,10 +160,8 @@
     $(document).ready(function() {
         initialState = getCheckedValues();
 
-        // Pantau perubahan pada checkbox yang sudah ada
         $(document).on('change', '.kompetensi-checkbox', checkFooterState);
 
-        // FITUR ACCORDION KATEGORI
         $('.kategori-header').on('click', function() {
             let $body = $(this).siblings('.kategori-body');
             let $icon = $(this).find('.toggle-icon');
@@ -178,7 +174,6 @@
             }
         });
 
-        // FITUR LIVE SEARCH
         $('#searchKompetensi').on('keyup', function() {
             let val = $(this).val().toLowerCase();
             
@@ -212,7 +207,6 @@
         window.location.reload(); 
     }
 
-    // --- FUNGSI MODAL TAMBAH KOMPETENSI ---
     const modKomp = $('#kompModal');
     const frmKomp = $('#formKomp');
 
@@ -246,11 +240,9 @@
                         icon: 'success', title: 'Berhasil!', text: response.message, showConfirmButton: false, timer: 1500
                     });
 
-                    // --- LOGIKA SUNTIK HTML TANPA RELOAD HALAMAN ---
                     let komp = response.data;
                     let safeKategori = komp.kategori ? komp.kategori : 'Kategori Lainnya';
                     
-                    // Template HTML untuk kotak kompetensi baru
                     let htmlCard = `
                         <label class="kompetensi-card relative flex items-start p-4 cursor-pointer rounded-xl border border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 transition-all group has-[:checked]:bg-blue-50 has-[:checked]:border-primary" data-nama="${komp.nama_kompetensi.toLowerCase()}">
                             <div class="flex items-center h-5">
@@ -262,26 +254,21 @@
                         </label>
                     `;
 
-                    // Cari apakah box kategori (Teknis/Manajerial/dll) sudah ada di layar
                     let $kategoriHeader = $('.kategori-header h3').filter(function() {
                         return $(this).text().trim() === safeKategori;
                     });
 
                     if ($kategoriHeader.length > 0) {
-                        // Jika kategori sudah ada, masukkan card di urutan paling bawah kategori tersebut
                         let $body = $kategoriHeader.closest('.kategori-section').find('.kategori-body');
                         $body.append(htmlCard);
                         
-                        // Buka (slide down) accordion jika sedang tertutup
                         $body.slideDown();
                         $kategoriHeader.closest('.kategori-section').find('.toggle-icon').css('transform', 'rotate(180deg)');
                         
-                        // Update jumlah item di header
                         let $itemCount = $kategoriHeader.siblings('.item-count');
                         let currentCount = parseInt($itemCount.text());
                         $itemCount.text((currentCount + 1) + ' Item');
                     } else {
-                        // Jika kategorinya belum pernah ada, yang paling aman adalah reload
                         window.location.reload();
                     }
                 }

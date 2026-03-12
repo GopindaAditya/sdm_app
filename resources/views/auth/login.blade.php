@@ -119,7 +119,6 @@
     </div>
 
     <script>
-        // Fitur sederhana untuk memperlihatkan/menyembunyikan password
         function togglePassword() {
             const pwdInput = document.getElementById('password');
             const eyeIcon = document.getElementById('eye-icon');

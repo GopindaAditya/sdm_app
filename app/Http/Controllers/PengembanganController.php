@@ -180,25 +180,21 @@ class PengembanganController extends Controller
         $pegawai = Auth::user();
         $riwayatId = request('riwayat_id'); 
 
-        // 1. Ambil ID Kompetensi yang SUDAH DIMILIKI (Approved dari riwayat LAIN)
         $ownedIds = DB::table('kompetensi_pegawai as kp')
             ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
             ->where('rp.nip', $pegawai->nip)
             ->where('rp.status', 'approved')
-            // JANGAN anggap 'owned' jika itu milik riwayat yang sedang diedit
             ->when($riwayatId, function($q) use ($riwayatId) {
                 return $q->where('kp.id_riwayat_peng', '!=', $riwayatId);
             })
             ->pluck('kp.id_kompetensi')
             ->toArray();
 
-        // 2. Ambil Rekomendasi Admin (Default mapping)
         $defaultAdminIds = DB::table('pengembangan_kompetensi')
             ->where('id_pengembangan', $id_pengembangan)
             ->pluck('id_kompetensi')
             ->toArray();
 
-        // 3. LOGIKA KRUSIAL: Ambil apa yang pernah Anda pilih di riwayat ini
         $pilihanLamaUser = [];
         if ($riwayatId) {
             $pilihanLamaUser = DB::table('kompetensi_pegawai')
@@ -207,11 +203,8 @@ class PengembanganController extends Controller
                 ->toArray();
         }
 
-        // Tentukan mana yang harus tercentang di UI:
-        // Jika sedang EDIT (ada pilihan lama), pakai itu. Jika BARU, pakai default admin.
         $finalSelectedIds = !empty($pilihanLamaUser) ? $pilihanLamaUser : $defaultAdminIds;
 
-        // 4. Ambil Semua Kompetensi Jabatan
         $data = DB::table('kompetensi as k')
             ->join('jabatan_kompetensi as jk', 'k.id', '=', 'jk.id_kompetensi')
             ->where('jk.id_jabatan', $pegawai->id_jabatan)
@@ -227,7 +220,7 @@ class PengembanganController extends Controller
         return response()->json([
             'success' => true,
             'data' => $data,
-            'selected_ids' => $finalSelectedIds // Ini berisi pilihan lama Anda saat edit
+            'selected_ids' => $finalSelectedIds 
         ]);
     }
 

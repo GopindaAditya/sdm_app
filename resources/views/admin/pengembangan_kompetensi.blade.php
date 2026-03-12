@@ -174,7 +174,6 @@
         });
     });
 
-    // Modal Quick Add logic
     const modKomp = $('#kompModal');
     function openModalKomp() { modKomp.removeClass('hidden'); setTimeout(() => $('input[name="nama_kompetensi"]').focus(), 100); }
     function closeModalKomp() { modKomp.addClass('hidden'); $('#formKomp')[0].reset(); }
@@ -185,7 +184,6 @@
         $btn.prop('disabled', true).addClass('opacity-70');
         $spinner.removeClass('hidden').addClass('animate-spin');
 
-        // Menggunakan rute dari AdminJabatanController karena fungsinya persis sama
         $.ajax({
             url: "{{ route('kompetensi.quick_add') }}",
             type: "POST", data: $('#formKomp').serialize(),

@@ -269,7 +269,6 @@ class KompetensiController extends Controller
         $jabatanIds = $pegawai->pluck('id_jabatan')->filter()->unique();
         $nips = $pegawai->pluck('nip');
 
-        // 1. Ambil DETAIL Kompetensi STANDAR JABATAN
         $standarKompDetail = DB::table('jabatan_kompetensi as jk')
             ->join('kompetensi as k', 'jk.id_kompetensi', '=', 'k.id')
             ->whereIn('jk.id_jabatan', $jabatanIds)
@@ -277,7 +276,6 @@ class KompetensiController extends Controller
             ->get()
             ->groupBy('id_jabatan');
 
-        // 2. Ambil ID Kompetensi yang SUDAH DIMILIKI (Approved)
         $ownedKompIds = DB::table('kompetensi_pegawai as kp')
             ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
             ->whereIn('rp.nip', $nips)
@@ -287,11 +285,9 @@ class KompetensiController extends Controller
             ->groupBy('nip');
 
         foreach ($pegawai as $p) {
-            // Ambil list standar
             $p->list_standar = $standarKompDetail[$p->id_jabatan] ?? collect();
             $p->kompetensi_total = $p->list_standar->count();
 
-            // Cari yang BELUM DIMILIKI (GAP)
             $ownedIds = ($ownedKompIds[$p->nip] ?? collect())->pluck('id_kompetensi')->toArray();
             
             $p->list_gap = $p->list_standar->filter(function($item) use ($ownedIds) {
@@ -334,11 +330,10 @@ class KompetensiController extends Controller
             ->select('jabatan_kompetensi.id_jabatan', 'kompetensi.id', 'kompetensi.nama_kompetensi')
             ->get()->groupBy('id_jabatan');
 
-        // FIX: Lakukan join ke riwayat_pengembangan untuk mencari berdasarkan NIP
         $kompDimiliki = DB::table('kompetensi_pegawai as kp')
             ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
             ->whereIn('rp.nip', $pegawai->pluck('nip'))
-            ->where('rp.status', 'approved') // Pastikan hanya data yang sudah valid/disetujui
+            ->where('rp.status', 'approved') 
             ->select('rp.nip', 'kp.id_kompetensi')
             ->get()
             ->groupBy('nip');
@@ -349,7 +344,6 @@ class KompetensiController extends Controller
             $dataDimiliki = $kompDimiliki->get($p->nip);
             $dimilikiIds = $dataDimiliki ? $dataDimiliki->pluck('id_kompetensi')->toArray() : [];
             
-            // Logika GAP: Standar yang tidak ada di dimilikiIds
             $p->kebutuhan_diklat = $standar->whereNotIn('id', $dimilikiIds)->pluck('nama_kompetensi')->toArray();
             $p->jumlah_kebutuhan = count($p->kebutuhan_diklat);
             $p->jumlah_standar = $standar->count();
@@ -379,7 +373,6 @@ class KompetensiController extends Controller
         $pegawai = $query->orderBy('nama')->get();
         $nips = $pegawai->pluck('nip')->toArray();
         
-        // FIX: Join ke riwayat_pengembangan
         $kompetensiQuery = DB::table('kompetensi_pegawai as kp')
             ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
             ->join('kompetensi as k', 'kp.id_kompetensi', '=', 'k.id')
@@ -452,7 +445,6 @@ class KompetensiController extends Controller
         $nips = $pegawai->pluck('nip')->toArray();
         $jabatanIds = $pegawai->pluck('id_jabatan')->filter()->unique()->toArray();
         
-        // Ambil detail standar kompetensi dari jabatan
         $standarKompDetail = DB::table('jabatan_kompetensi as jk')
             ->join('kompetensi as k', 'jk.id_kompetensi', '=', 'k.id')
             ->whereIn('jk.id_jabatan', $jabatanIds)
@@ -460,7 +452,6 @@ class KompetensiController extends Controller
             ->get()
             ->groupBy('id_jabatan');
 
-        // Ambil detail kompetensi yang SUDAH dimiliki (Status Approved)
         $ownedKompDetail = DB::table('kompetensi_pegawai as kp')
             ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
             ->join('kompetensi as k', 'kp.id_kompetensi', '=', 'k.id')
@@ -498,7 +489,6 @@ class KompetensiController extends Controller
             $listDimiliki = ($ownedKompDetail[$p->nip] ?? collect())->unique('id');
             $ownedIds = $listDimiliki->pluck('id')->toArray();
             
-            // Filter Standar yang ID-nya TIDAK ADA di dalam array OwnedIds
             $listGap = $listStandar->filter(function($item) use ($ownedIds) {
                 return !in_array($item->id, $ownedIds);
             });
@@ -506,14 +496,11 @@ class KompetensiController extends Controller
             $gapCount = $listGap->count();
             $gapNames = $listGap->pluck('nama_kompetensi')->toArray();
             
-            // Teks untuk nama kompetensi
             $gapString = empty($gapNames) ? '-' : implode(', ', $gapNames);
             
-            // Pewarnaan teks (merah jika ada GAP, hijau jika sudah lengkap)
-            $color = $gapCount > 0 ? '#dc3545' : '#198754'; // Merah / Hijau
+            $color = $gapCount > 0 ? '#dc3545' : '#198754';
             $selisihTeks = $gapCount > 0 ? $gapCount : '0';
 
-            // mso-number-format:'\@'; digunakan agar NIP (angka panjang) tidak berubah menjadi format scientific di Excel
             echo '
             <tr>
                 <td align="center" valign="top">' . $no++ . '</td>
@@ -552,7 +539,6 @@ class KompetensiController extends Controller
             ->select('jabatan_kompetensi.id_jabatan', 'kompetensi.id', 'kompetensi.nama_kompetensi')
             ->get()->groupBy('id_jabatan');
         
-        // FIX: Join ke riwayat_pengembangan
         $dimilikiRaw = DB::table('kompetensi_pegawai as kp')
             ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
             ->whereIn('rp.nip', $nips)

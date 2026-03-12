@@ -142,7 +142,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    // Inisialisasi Grafik Batang (Bar Chart) yang lebih informatif
     @if(count($dataJabatan) > 0)
         document.addEventListener("DOMContentLoaded", function() {
             const ctx = document.getElementById('jabatanChart').getContext('2d');
@@ -154,7 +153,7 @@
                     datasets: [{
                         label: 'Jumlah Pegawai',
                         data: {!! json_encode($dataJabatan) !!},
-                        backgroundColor: '#3b82f6', // Primary Blue
+                        backgroundColor: '#3b82f6',  
                         borderRadius: 6,
                         barThickness: 24
                     }]
@@ -180,7 +179,6 @@
                             grid: { display: false, drawBorder: false },
                             ticks: {
                                 callback: function(value) {
-                                    // Memotong label jika terlalu panjang
                                     let label = this.getLabelForValue(value);
                                     return label.length > 10 ? label.substr(0, 10) + '...' : label;
                                 }

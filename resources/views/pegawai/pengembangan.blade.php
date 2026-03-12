@@ -177,7 +177,6 @@
         let currentPerPage = 10; 
         let typingTimer;        
         
-        // --- 1. FUNGSI LOAD TABEL (AJAX) ---
         function fetchFilteredData(pageUrl = window.location.pathname) {
             $('#table-container').css('opacity', '0.5'); 
             $.ajax({
@@ -195,7 +194,6 @@
             });
         }
         
-        // --- 2. NOTIFIKASI ALERT ---
         function showAlert(type, message) {
             let $container = $('#ajax-alert-container'), $alert = $('#ajax-alert'), $icon = $('#ajax-alert-icon'), $text = $('#ajax-alert-text');
             $alert.removeClass('bg-emerald-50 border-emerald-500 bg-red-50 border-red-500');
@@ -214,7 +212,6 @@
             setTimeout(() => { $container.fadeOut(() => $container.addClass('hidden')); }, 5000);
         }
         
-        // --- 3. EVENT FILTER & SEARCH ---
         $('#searchInput').on('keyup', function() {
             clearTimeout(typingTimer);
             currentSearch = $(this).val();
@@ -231,12 +228,11 @@
         $(document).on('change', '#perPage', function() { currentPerPage = $(this).val(); fetchFilteredData(); });
         $(document).on('click', '.pagination-wrapper a', function(e) { e.preventDefault(); fetchFilteredData($(this).attr('href')); });
 
-        // --- 4. LOGIKA MODAL (UPLOAD & EDIT) ---
         $(document).on('click', '.btn-trigger-modal', function() {
             let id_pengembangan = $(this).data('id');
             let nama = $(this).data('nama');
             let tanggal = $(this).data('tanggal'); 
-            let riwayatId = $(this).data('riwayat-id'); // ID Riwayat jika mode EDIT
+            let riwayatId = $(this).data('riwayat-id'); 
 
             $('#modal_id_pengembangan').val(id_pengembangan);
             $('#modal_nama_pengembangan').text(nama);
@@ -247,16 +243,15 @@
             $.ajax({
                 url: `{{ url('/pengembangan/upload') }}/${id_pengembangan}/kompetensi`,
                 type: 'GET',
-                data: { riwayat_id: riwayatId }, // Kirim riwayat_id agar Controller tahu ini mode EDIT
+                data: { riwayat_id: riwayatId }, 
                 success: function(response) {
                     $('#loading-kompetensi').addClass('hidden');
                     $('#formUploadSertifikat button[type="submit"]').prop('disabled', false);
                     
                     if(response.data && response.data.length > 0) {
                         let html = '';
-                        let selectedIds = response.selected_ids || []; // Berisi Pilihan Lama (Edit) atau Rekomendasi (Baru)
+                        let selectedIds = response.selected_ids || [];
 
-                        // Grouping data per kategori
                         let groupedData = response.data.reduce((acc, obj) => {
                             let key = obj.kategori || 'Lainnya';
                             if (!acc[key]) acc[key] = [];
@@ -269,10 +264,8 @@
                             html += `<div class="sticky top-0 z-10 bg-slate-50/90 dark:bg-slate-900/90 py-1.5 mb-2 mt-3 first:mt-0 px-2 rounded-md font-bold text-[10px] uppercase tracking-widest ${badgeClass}">${kategori}</div>`;
                             html += '<div class="grid grid-cols-1 gap-1.5 mb-4">';
 
-                            // Sort: yang dipilih ditaruh di atas
                             groupedData[kategori].sort((a,b) => (selectedIds.includes(a.id) === selectedIds.includes(b.id)) ? 0 : selectedIds.includes(a.id) ? -1 : 1)
                             .forEach(function(komp) {
-                                // LOGIKA CENTANG: Tercentang jika ada di list pilihan lama/rekomendasi ATAU sudah dimiliki
                                 let isSelected = selectedIds.includes(komp.id);
                                 let isOwned = komp.is_owned;
                                 let isChecked = (isSelected || isOwned) ? 'checked' : '';
@@ -308,7 +301,6 @@
                 }
             });
 
-            // Set Title Modal & Input Tanggal
             if (tanggal) {
                 $('#modal-title').text('Perbarui Sertifikat');
                 $('input[name="tanggal_kegiatan"]').val(tanggal);
@@ -323,7 +315,6 @@
             $('#uploadModal').removeClass('hidden');
         });
 
-        // --- 5. SUBMIT FORM (UPLOAD) ---
         $('#formUploadSertifikat').on('submit', function(e) {
             e.preventDefault(); 
             if ($('input[name="kompetensi[]"]:checked').length === 0) {
@@ -351,7 +342,6 @@
             });
         });
 
-        // --- 6. HAPUS DATA ---
         $(document).on('click', '.btn-delete', function(e) {
             e.preventDefault();
             let deleteUrl = $(this).data('url');
@@ -371,7 +361,6 @@
             });
         });
 
-        // --- 7. UTILITY (SEARCH MODAL, RESET UI, FILE CHANGE) ---
         $('#searchKompetensiModal').on('keyup', function() {
             let val = $(this).val().toLowerCase();
             $('.komp-item').each(function() { $(this).toggle($(this).data('nama').includes(val)); });

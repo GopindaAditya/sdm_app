@@ -208,8 +208,7 @@
 @push('scripts')
 <script>
     let currentRiwayatId = null;
-
-    // --- FITUR SEARCH KOMPETENSI ---
+    
     $('#searchKompPegawai').on('keyup', function() {
         let val = $(this).val().toLowerCase();
         $('.row-kompetensi').each(function() {
@@ -223,7 +222,6 @@
         });
     });
 
-    // --- LOGIKA MODAL REVIEW (REVISI 4) ---
     function bukaModalReview(id, namaPengembangan) {
         currentRiwayatId = id;
         $('#review_nama_pengembangan').text(namaPengembangan);
@@ -240,7 +238,6 @@
                     let html = '';
                     let selectedIds = response.selected_ids || [];
                     
-                    // Kelompokkan data berdasarkan kategori
                     let groupedData = response.data.reduce((acc, obj) => {
                         let key = obj.kategori || 'Lainnya';
                         if (!acc[key]) acc[key] = [];
@@ -251,18 +248,13 @@
                     for (let kategori in groupedData) {
                         html += `<div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 mt-4 first:mt-0">${kategori}</div>`;
                         
-                        // Urutkan: Yang dicentang pegawai muncul di atas per kategori
                         groupedData[kategori].sort((a,b) => (selectedIds.includes(a.id) === selectedIds.includes(b.id)) ? 0 : selectedIds.includes(a.id) ? -1 : 1)
                         .forEach(function(komp) {
                             let isOwned = komp.is_owned;
                             let isSelectedByPegawai = selectedIds.includes(komp.id);
-                            
-                            // Centang muncul jika: Dipilih Pegawai OR Sudah Dimiliki
                             let isChecked = (isSelectedByPegawai || isOwned) ? 'checked' : '';
-                            // Disable jika sudah dimiliki (approved) di riwayat lain
                             let isDisabled = isOwned ? 'disabled' : '';
                             
-                            // Logika Label Tunggal (Prioritas)
                             let labelHtml = '';
                             if (isOwned) {
                                 labelHtml = `<span class="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
@@ -309,11 +301,9 @@
         currentRiwayatId = null;
     }
 
-    // --- PROSES FINAL VERIFIKASI (EDIT KOMPETENSI OLEH ADMIN) ---
     function prosesVerifikasiFinal(status) {
         let selectedKomp = [];
         
-        // PERBAIKAN: Hanya ambil yang di-check DAN BUKAN yang di-disable
         $('input[name="komp_review[]"]:checked:not(:disabled)').each(function() {
             selectedKomp.push($(this).val());
         });
@@ -339,12 +329,12 @@
                     headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     data: { 
                         status: status,
-                        kompetensi_admin: selectedKomp // Kirim pilihan kompetensi yang sudah diedit Admin
+                        kompetensi_admin: selectedKomp
                     },
                     success: function(response) {
                         if(response.success) {
                             Swal.fire({ icon: 'success', title: 'Berhasil', text: response.message, timer: 1500, showConfirmButton: false });
-                            location.reload(); // Reload untuk melihat perubahan status kompetensi di tabel bawah
+                            location.reload(); 
                         }
                     },
                     error: function(xhr) {
