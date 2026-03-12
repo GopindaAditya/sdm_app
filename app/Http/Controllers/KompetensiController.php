@@ -275,20 +275,21 @@ class KompetensiController extends Controller
             ->select('jk.id_jabatan', 'k.id', 'k.nama_kompetensi')
             ->get()
             ->groupBy('id_jabatan');
-
-        $ownedKompIds = DB::table('kompetensi_pegawai as kp')
+        
+        $ownedKompDetail = DB::table('kompetensi_pegawai as kp')
             ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
+            ->join('kompetensi as k', 'kp.id_kompetensi', '=', 'k.id') // Tambahkan join ini
             ->whereIn('rp.nip', $nips)
             ->where('rp.status', 'approved')
-            ->select('rp.nip', 'kp.id_kompetensi')
+            ->select('rp.nip', 'k.id', 'k.nama_kompetensi') 
             ->get()
             ->groupBy('nip');
 
         foreach ($pegawai as $p) {
             $p->list_standar = $standarKompDetail[$p->id_jabatan] ?? collect();
-            $p->kompetensi_total = $p->list_standar->count();
-
-            $ownedIds = ($ownedKompIds[$p->nip] ?? collect())->pluck('id_kompetensi')->toArray();
+            $p->kompetensi_total = $p->list_standar->count();            
+            $p->list_dimiliki = ($ownedKompDetail[$p->nip] ?? collect())->unique('id');
+            $ownedIds = $p->list_dimiliki->pluck('id')->toArray();
             
             $p->list_gap = $p->list_standar->filter(function($item) use ($ownedIds) {
                 return !in_array($item->id, $ownedIds);
@@ -384,7 +385,10 @@ class KompetensiController extends Controller
         if ($tahun !== 'semua') {
             $kompetensiQuery->whereYear('rp.tanggal_kegiatan', $tahun);
         }
-        $kompetensiRaw = $kompetensiQuery->get()->groupBy('nip');
+        
+        $kompetensiRaw = collect($kompetensiQuery->get())->unique(function ($item) {
+            return $item->nip . $item->nama_kompetensi;
+        })->groupBy('nip');
         
         $namaTahun = $tahun === 'semua' ? 'Semua_Tahun' : $tahun;
         $fileName = "Rekap_Kompetensi_BPS_Bali_{$namaTahun}.xls";
@@ -398,31 +402,34 @@ class KompetensiController extends Controller
         echo '
         <table border="1">
             <tr>
-                <th colspan="5" style="font-size: 16px; font-weight: bold;">REKAP KOMPETENSI PEGAWAI BPS PROVINSI BALI</th>
+                <th colspan="5" style="font-size: 16px; font-weight: bold; background-color: #cfe2ff;">REKAP KOMPETENSI PEGAWAI BPS PROVINSI BALI</th>
             </tr>
             <tr>
-                <th colspan="5" style="font-weight: bold;">Filter: ' . ($tahun === 'semua' ? 'Semua Tahun' : 'Tahun ' . $tahun) . '</th>
+                <th colspan="5" style="font-weight: bold; background-color: #f8f9fa;">Filter: ' . ($tahun === 'semua' ? 'Semua Tahun' : 'Tahun ' . $tahun) . '</th>
             </tr>
-            <tr style="background-color: #f2f2f2;">
-                <th style="font-weight: bold;">No</th>
-                <th style="font-weight: bold;">NIP</th>
-                <th style="font-weight: bold;">Nama Pegawai</th>
-                <th style="font-weight: bold;">Jabatan</th>
-                <th style="font-weight: bold;">Kompetensi Dimiliki ' . $headerTahun . '</th>
+            <tr style="background-color: #e2e3e5;">
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">No</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">NIP</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Nama Pegawai</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Jabatan</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Dimiliki ' . $headerTahun . '</th>
             </tr>';
 
         $no = 1;
+        $br = '<br style="mso-data-placement:same-cell;"/>'; 
+
         foreach ($pegawai as $p) {
             $komps = isset($kompetensiRaw[$p->nip]) ? $kompetensiRaw[$p->nip]->pluck('nama_kompetensi')->toArray() : [];
-            $kompString = empty($komps) ? '-' : implode(', ', $komps);
+                        
+            $kompString = empty($komps) ? '-' : '- ' . implode($br . '- ', $komps);
 
             echo '
             <tr>
-                <td align="center">' . $no++ . '</td>
-                <td>' . $p->nip . '</td>
-                <td>' . $p->nama . '</td>
-                <td>' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
-                <td>' . $kompString . '</td>
+                <td align="center" valign="top">' . $no++ . '</td>
+                <td valign="top" style="mso-number-format:\'\@\';">' . $p->nip . '</td>
+                <td valign="top">' . $p->nama . '</td>
+                <td valign="top">' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
+                <td valign="top">' . $kompString . '</td>
             </tr>';
         }
 
@@ -468,35 +475,46 @@ class KompetensiController extends Controller
         echo '
         <table border="1">
             <tr>
-                <th colspan="8" style="font-size: 16px; font-weight: bold; background-color: #d1e7dd;">REKAP GAP KOMPETENSI PEGAWAI BPS PROVINSI BALI</th>
+                <th colspan="11" style="font-size: 16px; font-weight: bold; background-color: #d1e7dd;">REKAP GAP KOMPETENSI PEGAWAI BPS PROVINSI BALI</th>
             </tr>
             <tr style="background-color: #f8f9fa;">
                 <th style="font-weight: bold; vertical-align: middle; text-align: center;">No</th>
                 <th style="font-weight: bold; vertical-align: middle; text-align: center;">NIP</th>
                 <th style="font-weight: bold; vertical-align: middle; text-align: center;">Nama Pegawai</th>
                 <th style="font-weight: bold; vertical-align: middle; text-align: center;">Jabatan</th>
-                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Total</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Standar Kompetensi (Angka)</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Standar Kompetensi (Nama Kompetensi)</th>
                 <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Belum Dimiliki (Angka)</th>
                 <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Belum Dimiliki (Nama Kompetensi)</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Sudah Dimiliki (Angka)</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kompetensi Sudah Dimiliki (Nama Kompetensi)</th>
                 <th style="font-weight: bold; vertical-align: middle; text-align: center;">Selisih</th>
             </tr>';
 
         $no = 1;
+        $br = '<br style="mso-data-placement:same-cell;"/>'; 
+
         foreach ($pegawai as $p) {
             $listStandar = $standarKompDetail[$p->id_jabatan] ?? collect();
             $total = $listStandar->count();
+                        
+            $standarNames = $listStandar->pluck('nama_kompetensi')->toArray();
+            $standarString = empty($standarNames) ? '-' : '- ' . implode($br . '- ', $standarNames);
             
             $listDimiliki = ($ownedKompDetail[$p->nip] ?? collect())->unique('id');
             $ownedIds = $listDimiliki->pluck('id')->toArray();
+                        
+            $ownedCount = $listDimiliki->count();
+            $ownedNames = $listDimiliki->pluck('nama_kompetensi')->toArray();
+            $ownedString = empty($ownedNames) ? '-' : '- ' . implode($br . '- ', $ownedNames);
             
             $listGap = $listStandar->filter(function($item) use ($ownedIds) {
                 return !in_array($item->id, $ownedIds);
             });
-            
+                        
             $gapCount = $listGap->count();
             $gapNames = $listGap->pluck('nama_kompetensi')->toArray();
-            
-            $gapString = empty($gapNames) ? '-' : implode(', ', $gapNames);
+            $gapString = empty($gapNames) ? '-' : '- ' . implode($br . '- ', $gapNames);
             
             $color = $gapCount > 0 ? '#dc3545' : '#198754';
             $selisihTeks = $gapCount > 0 ? $gapCount : '0';
@@ -508,8 +526,11 @@ class KompetensiController extends Controller
                 <td valign="top">' . $p->nama . '</td>
                 <td valign="top">' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
                 <td align="center" valign="top"><b>' . $total . '</b></td>
+                <td valign="top">' . $standarString . '</td>
                 <td align="center" valign="top" style="color: ' . $color . '; font-weight: bold;">' . $gapCount . '</td>
                 <td valign="top" style="color: ' . $color . ';">' . $gapString . '</td>
+                <td align="center" valign="top" style="color: #198754; font-weight: bold;">' . $ownedCount . '</td>
+                <td valign="top" style="color: #198754;">' . $ownedString . '</td>
                 <td align="center" valign="top" style="color: ' . $color . '; font-weight: bold;">' . $selisihTeks . '</td>
             </tr>';
         }
@@ -553,17 +574,19 @@ class KompetensiController extends Controller
         echo '
         <table border="1">
             <tr>
-                <th colspan="5" style="font-size: 16px; font-weight: bold;">REKAP ANALISIS KEBUTUHAN DIKLAT BPS PROVINSI BALI</th>
+                <th colspan="5" style="font-size: 16px; font-weight: bold; background-color: #f8d7da;">REKAP ANALISIS KEBUTUHAN DIKLAT PEGAWAI BPS PROVINSI BALI</th>
             </tr>
-            <tr style="background-color: #f2f2f2;">
-                <th style="font-weight: bold;">No</th>
-                <th style="font-weight: bold;">NIP</th>
-                <th style="font-weight: bold;">Nama Pegawai</th>
-                <th style="font-weight: bold;">Jabatan</th>
-                <th style="font-weight: bold;">Kebutuhan Diklat (Kompetensi Belum Dimiliki)</th>
+            <tr style="background-color: #f8f9fa;">
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">No</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">NIP</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Nama Pegawai</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Jabatan</th>
+                <th style="font-weight: bold; vertical-align: middle; text-align: center;">Kebutuhan Diklat (Kompetensi Belum Dimiliki)</th>
             </tr>';
 
         $no = 1;
+        $br = '<br style="mso-data-placement:same-cell;"/>'; 
+
         foreach ($pegawai as $p) {
             $kebutuhan = [];
             $standar = isset($standarRaw[$p->id_jabatan]) ? $standarRaw[$p->id_jabatan] : [];
@@ -574,16 +597,16 @@ class KompetensiController extends Controller
                     $kebutuhan[] = $st->nama_kompetensi;
                 }
             }
-
-            $kebutuhanString = empty($kebutuhan) ? 'Sudah Memenuhi Standar' : implode(', ', $kebutuhan);
+            
+            $kebutuhanString = empty($kebutuhan) ? 'Sudah Memenuhi Standar' : '- ' . implode($br . '- ', $kebutuhan);
 
             echo '
             <tr>
                 <td align="center" valign="top">' . $no++ . '</td>
-                <td valign="top">' . $p->nip . '</td>
+                <td valign="top" style="mso-number-format:\'\@\';">' . $p->nip . '</td>
                 <td valign="top">' . $p->nama . '</td>
                 <td valign="top">' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
-                <td valign="top" style="color: ' . (empty($kebutuhan) ? 'green' : 'red') . ';">' . $kebutuhanString . '</td>
+                <td valign="top" style="color: ' . (empty($kebutuhan) ? '#198754' : '#dc3545') . ';">' . $kebutuhanString . '</td>
             </tr>';
         }
 

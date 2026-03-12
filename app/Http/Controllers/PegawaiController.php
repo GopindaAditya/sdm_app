@@ -98,59 +98,97 @@ class PegawaiController extends Controller
 
         $ownedKompDetail = DB::table('kompetensi_pegawai as kp')
             ->join('riwayat_pengembangan as rp', 'kp.id_riwayat_peng', '=', 'rp.id')
-            ->join('kompetensi as k', 'kp.id_kompetensi', '=', 'k.id')
+            ->join('pengembangan as peng', 'rp.id_pengembangan', '=', 'peng.id')
             ->whereIn('rp.nip', $nips)
             ->where('rp.status', 'approved')
-            ->select('rp.nip', 'k.id', 'k.nama_kompetensi')
+            ->select('rp.nip', 'kp.id_kompetensi', 'peng.nama_pengembangan')
             ->get()
             ->groupBy('nip');
 
-        $fileName = "Profil_dan_Kompetensi_Pegawai_" . date('Y-m-d') . ".xls";
+        $rekomendasiRaw = DB::table('pengembangan_kompetensi as pk')
+            ->join('pengembangan as p', 'pk.id_pengembangan', '=', 'p.id')
+            ->select('pk.id_kompetensi', 'p.nama_pengembangan')
+            ->get();
+            
+        $rekMap = [];
+        foreach ($rekomendasiRaw as $r) {
+            $rekMap[$r->id_kompetensi][] = $r->nama_pengembangan;
+        }
+
+        $fileName = "Analisis_Kesenjangan_Kompetensi_Pegawai" . date('Y-m-d') . ".xls";
         header("Content-Type: application/vnd.ms-excel");
         header("Content-Disposition: attachment; filename=\"$fileName\"");
 
         echo '
         <table border="1">
             <tr>
-                <th colspan="9" style="font-size: 16px; font-weight: bold; background-color: #cfe2ff;">PROFIL DAN REKAP KOMPETENSI PEGAWAI TERPILIH</th>
+                <th colspan="7" style="font-size: 16px; font-weight: bold; background-color: #cfe2ff; text-align: center;">ANALISI KESENJANGAN KOMPETENSI PEGAWAI BPS PROVINSI BALI</th>
             </tr>
             <tr style="background-color: #f8f9fa;">
-                <th style="font-weight: bold;">No</th>
-                <th style="font-weight: bold;">NIP</th>
-                <th style="font-weight: bold;">Nama Pegawai</th>
-                <th style="font-weight: bold;">Jabatan</th>
-                <th style="font-weight: bold;">Target Standar</th>
-                <th style="font-weight: bold;">Jml Dimiliki</th>
-                <th style="font-weight: bold;">Daftar Kompetensi Dimiliki</th>
-                <th style="font-weight: bold;">Jml GAP</th>
-                <th style="font-weight: bold;">Kebutuhan Diklat (GAP)</th>
+                <th style="font-weight: bold; text-align: center; vertical-align: middle;">No</th>
+                <th style="font-weight: bold; text-align: center; vertical-align: middle;">NIP</th>
+                <th style="font-weight: bold; text-align: center; vertical-align: middle;">Nama Pegawai</th>
+                <th style="font-weight: bold; text-align: center; vertical-align: middle;">Jabatan</th>
+                <th style="font-weight: bold; text-align: center; vertical-align: middle;">Kompetensi (Standar Jabatan)</th>
+                <th style="font-weight: bold; text-align: center; vertical-align: middle;">Pengembangan Kompetensi (Diklat)</th>
+                <th style="font-weight: bold; text-align: center; vertical-align: middle;">Kesenjangan (GAP)</th>
             </tr>';
 
         $no = 1;
+
         foreach ($pegawai as $p) {
             $listStandar = $standarKompDetail[$p->id_jabatan] ?? collect();
-            $total = $listStandar->count();
+            $rowspan = $listStandar->count() > 0 ? $listStandar->count() : 1;
             
-            $listDimiliki = ($ownedKompDetail[$p->nip] ?? collect())->unique('id');
-            $ownedIds = $listDimiliki->pluck('id')->toArray();
-            $dimilikiString = $listDimiliki->isEmpty() ? '-' : implode(', ', $listDimiliki->pluck('nama_kompetensi')->toArray());
+            $ownedMap = [];
+            if (isset($ownedKompDetail[$p->nip])) {
+                foreach ($ownedKompDetail[$p->nip] as $own) {
+                    $ownedMap[$own->id_kompetensi][] = $own->nama_pengembangan;
+                }
+            }
             
-            $listGap = $listStandar->filter(function($item) use ($ownedIds) { return !in_array($item->id, $ownedIds); });
-            $gapCount = $listGap->count();
-            $gapString = $listGap->isEmpty() ? 'Sudah Terpenuhi' : implode(', ', $listGap->pluck('nama_kompetensi')->toArray());
+            $jabatanName = $p->jabatan->nama_jabatan ?? '-';
 
-            echo '
-            <tr>
-                <td align="center" valign="top">' . $no++ . '</td>
-                <td valign="top" style="mso-number-format:\'\@\';">' . $p->nip . '</td>
-                <td valign="top">' . $p->nama . '</td>
-                <td valign="top">' . ($p->jabatan->nama_jabatan ?? '-') . '</td>
-                <td align="center" valign="top">' . $total . '</td>
-                <td align="center" valign="top" style="color: #198754; font-weight: bold;">' . $listDimiliki->count() . '</td>
-                <td valign="top">' . $dimilikiString . '</td>
-                <td align="center" valign="top" style="color: ' . ($gapCount > 0 ? '#dc3545' : '#198754') . '; font-weight: bold;">' . $gapCount . '</td>
-                <td valign="top" style="color: ' . ($gapCount > 0 ? '#dc3545' : '#198754') . ';">' . $gapString . '</td>
-            </tr>';
+            echo '<tr>';
+            echo '<td rowspan="'.$rowspan.'" align="center" valign="top">' . $no++ . '</td>';
+            echo '<td rowspan="'.$rowspan.'" valign="top" style="mso-number-format:\'\@\';">' . $p->nip . '</td>';
+            echo '<td rowspan="'.$rowspan.'" valign="top">' . $p->nama . '</td>';
+            echo '<td rowspan="'.$rowspan.'" valign="top">' . $jabatanName . '</td>';
+
+            if ($listStandar->isEmpty()) {
+                echo '<td valign="top" style="color: #6c757d; font-style: italic;">Belum ada standar kompetensi</td>';
+                echo '<td align="center" valign="top">-</td>';
+                echo '<td align="center" valign="top">-</td>';
+                echo '</tr>';
+            } else {
+                $isFirst = true;
+                foreach ($listStandar as $st) {
+                    if (!$isFirst) echo '<tr>';
+                    
+                    $hasKomp = isset($ownedMap[$st->id]);
+                    
+                    if ($hasKomp) {                        
+                        $diklatList = implode(', ', array_unique($ownedMap[$st->id]));
+                        $gapText = 'Tidak';
+                        $gapColor = '#198754'; 
+                    } else {                        
+                        if (isset($rekMap[$st->id])) {                            
+                            $diklatList = implode(', ', array_unique($rekMap[$st->id]));
+                        } else {                            
+                            $diklatList = '<span style="color: #dc3545; font-style: italic;">-</span>';
+                        }
+                        $gapText = 'Ada';
+                        $gapColor = '#dc3545'; 
+                    }
+                    
+                    echo '<td valign="top">' . $st->nama_kompetensi . '</td>';
+                    echo '<td valign="top">' . $diklatList . '</td>';
+                    echo '<td align="center" valign="top" style="color: '.$gapColor.'; font-weight: bold;">' . $gapText . '</td>';
+                    echo '</tr>';
+                    
+                    $isFirst = false;
+                }
+            }
         }
         echo '</table>';
         exit;
@@ -268,25 +306,7 @@ class PegawaiController extends Controller
             return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
-
-    // public function storeKompetensiManualAdmin(Request $request, $nip)
-    // {        
-    //     $request->validate([
-    //         'id_kompetensi' => 'required|integer',
-    //         'tanggal_kegiatan' => 'required|date' 
-    //     ]);        
-
-    //     DB::table('kompetensi_pegawai')->updateOrInsert(
-    //         ['nip' => $nip, 'id_kompetensi' => $request->id_kompetensi],
-    //         [               
-    //             'tanggal_kegiatan' => $request->tanggal_kegiatan, 
-    //             'updated_at' => now(), 
-    //             'created_at' => now()
-    //         ]
-    //     );
-
-    //     return response()->json(['success' => true, 'message' => 'Kompetensi berhasil ditandai terpenuhi!']);
-    // }
+    
     /*
     |--------------------------------------------------------------------------
     | 3. DASHBOARD (ADMIN & PEGAWAI)
